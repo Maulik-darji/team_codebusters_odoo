@@ -45,9 +45,12 @@
                 <div class="form-group">
                     <label class="flex-between">
                         Password
-                        <a href="#" style="color: var(--primary); font-size: 0.75rem;" onclick="alert('OTP reset UI only: Check your email for instructions.')">Forgot Password?</a>
+                        <a href="#" id="forgot-password-link" style="color: var(--primary); font-size: 0.75rem;">Forgot Password?</a>
                     </label>
-                    <input type="password" id="password" required placeholder="••••••••">
+                    <div class="password-toggle-wrapper">
+                        <input type="password" id="password" required placeholder="••••••••">
+                        <i id="toggle-password" data-lucide="eye"></i>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Login</button>
             </form>

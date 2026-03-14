@@ -1,5 +1,5 @@
 import { auth, db } from './firebase-config.js';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { collection, query, where, getDocs, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import Storage from './storage.js';
 
@@ -22,6 +22,8 @@ const Auth = {
         const loginForm = document.getElementById('login-form');
         const signupForm = document.getElementById('signup-form');
         const skipBtn = document.getElementById('skip-btn');
+        const togglePassword = document.getElementById('toggle-password');
+        const forgotPasswordLink = document.getElementById('forgot-password-link');
 
         this.setupAuthObserver();
 
@@ -31,6 +33,25 @@ const Auth = {
 
         if (signupForm) {
             signupForm.addEventListener('submit', (e) => this.handleSignup(e));
+        }
+
+        if (togglePassword) {
+            togglePassword.addEventListener('click', () => {
+                const passwordInput = document.getElementById('password');
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                
+                // Toggle icon
+                togglePassword.setAttribute('data-lucide', type === 'password' ? 'eye' : 'eye-off');
+                lucide.createIcons();
+            });
+        }
+
+        if (forgotPasswordLink) {
+            forgotPasswordLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.handleForgotPassword();
+            });
         }
 
         if (skipBtn) {
@@ -132,6 +153,32 @@ const Auth = {
             errorEl.classList.remove('hidden');
             submitBtn.disabled = false;
             submitBtn.textContent = "Create Account";
+        }
+    },
+
+    async handleForgotPassword() {
+        const email = document.getElementById('email').value;
+        const errorEl = document.getElementById('alert-error');
+        
+        if (!email) {
+            errorEl.textContent = "Please enter your email address first.";
+            errorEl.classList.remove('badge-success');
+            errorEl.classList.add('badge-danger');
+            errorEl.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            await sendPasswordResetEmail(auth, email);
+            errorEl.textContent = "Password reset email sent! Check your inbox/spambox.";
+            errorEl.classList.remove('badge-danger');
+            errorEl.classList.add('badge-success');
+            errorEl.classList.remove('hidden');
+        } catch (err) {
+            errorEl.textContent = "Error: " + err.message;
+            errorEl.classList.remove('badge-success');
+            errorEl.classList.add('badge-danger');
+            errorEl.classList.remove('hidden');
         }
     }
 };
