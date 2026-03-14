@@ -35,6 +35,11 @@ const Products = {
         }
         await this.renderCategoryList();
 
+        // Final fallback: if auth resolves late, re-render
+        window.addEventListener('auth-ready', () => {
+            this.renderList();
+            this.populateSettings();
+        });
     },
 
     async populateSettings() {
@@ -43,10 +48,13 @@ const Products = {
         const settings = await Storage.getSettings();
 
         if (catSelect) catSelect.innerHTML = settings.categories.map(c => `<option value="${c}">${c}</option>`).join('');
-        if (locSelect) locSelect.innerHTML = settings.warehouses.map(w => {
-            const name = typeof w === 'string' ? w : w.name;
-            return `<option value="${name}">${name}</option>`;
-        }).join('');
+        if (locSelect) {
+            locSelect.innerHTML = settings.warehouses.map(w => {
+                const name = typeof w === 'string' ? w : w.name;
+                const prefix = (typeof w !== 'string' && w.parent) ? '↳ ' : '';
+                return `<option value="${name}">${prefix}${name}</option>`;
+            }).join('');
+        }
         await this.renderCategoryList();
 
     },
@@ -137,20 +145,28 @@ const Products = {
     },
 
     async deleteCat(name) {
-        if (confirm(`Remove category "${name}"?`)) {
-            const settings = await Storage.getSettings();
-            settings.categories = settings.categories.filter(c => c !== name);
-            await Storage.saveSettings(settings);
-            await this.populateSettings();
-        }
+        window.App.confirm(
+            "Delete Category",
+            `Are you sure you want to remove the category "${name}"?`,
+            async () => {
+                const settings = await Storage.getSettings();
+                settings.categories = settings.categories.filter(c => c !== name);
+                await Storage.saveSettings(settings);
+                await this.populateSettings();
+            }
+        );
     },
 
 
     async delete(id) {
-        if (confirm("Are you sure you want to delete this product?")) {
-            await Storage.deleteProduct(id);
-            await this.renderList();
-        }
+        window.App.confirm(
+            "Delete Product",
+            "Are you sure you want to delete this product? This action cannot be undone.",
+            async () => {
+                await Storage.deleteProduct(id);
+                await this.renderList();
+            }
+        );
     },
 
     async edit(id) {

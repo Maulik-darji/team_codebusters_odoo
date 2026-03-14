@@ -11,6 +11,14 @@ const Dashboard = {
         await this.populateWarehouseFilter();
 
         document.getElementById('warehouse-filter')?.addEventListener('change', () => this.renderStats());
+        document.getElementById('status-filter')?.addEventListener('change', () => this.renderLedger());
+
+        // Re-render if auth resolves late
+        window.addEventListener('auth-ready', () => {
+            this.renderStats();
+            this.renderLedger();
+            this.populateWarehouseFilter();
+        });
     },
 
     async populateWarehouseFilter() {
@@ -38,9 +46,12 @@ const Dashboard = {
         const lowStock = filteredProducts.filter(p => Number(p.stock) > 0 && Number(p.stock) <= Number(p.reorderLevel)).length;
         const outStock = filteredProducts.filter(p => Number(p.stock) <= 0).length;
 
-        const pendingReceipts = movements.filter(m => m.type === 'Receipt' && m.status !== 'Done').length;
-        const pendingDeliveries = movements.filter(m => m.type === 'Delivery' && m.status !== 'Done').length;
-        const scheduledTransfers = movements.filter(m => m.type === 'Transfer' && m.status !== 'Done').length;
+        const pendingReceipts = movements.filter(m => m.type === 'Receipt' && m.status === 'Ready').length;
+        const pendingDeliveries = movements.filter(m => m.type === 'Delivery' && m.status === 'Ready').length;
+        const scheduledTransfers = movements.filter(m => m.type === 'Transfer' && m.status === 'Ready').length;
+
+        const acceptedReceipts = movements.filter(m => m.type === 'Receipt' && m.status === 'Done').length;
+        const rejectedReceipts = movements.filter(m => m.type === 'Receipt' && m.status === 'Rejected').length;
 
         // UI Injection
         if (document.getElementById('kpi-total-stock')) document.getElementById('kpi-total-stock').textContent = totalStock.toLocaleString();
@@ -49,12 +60,20 @@ const Dashboard = {
         if (document.getElementById('kpi-pending-receipts')) document.getElementById('kpi-pending-receipts').textContent = pendingReceipts;
         if (document.getElementById('kpi-pending-delivery')) document.getElementById('kpi-pending-delivery').textContent = pendingDeliveries;
         if (document.getElementById('kpi-scheduled-transfers')) document.getElementById('kpi-scheduled-transfers').textContent = scheduledTransfers;
+        if (document.getElementById('kpi-accepted-receipts')) document.getElementById('kpi-accepted-receipts').textContent = acceptedReceipts;
+        if (document.getElementById('kpi-rejected-receipts')) document.getElementById('kpi-rejected-receipts').textContent = rejectedReceipts;
     },
 
     async renderLedger() {
         const list = document.getElementById('recent-movements');
-        const allMovements = await Storage.getMovements();
-        const movements = allMovements.slice(0, 5); // Latest 5
+        const statusFilter = document.getElementById('status-filter')?.value || 'all';
+        let movements = await Storage.getMovements();
+        
+        if (statusFilter !== 'all') {
+            movements = movements.filter(m => m.status === statusFilter);
+        }
+
+        movements = movements.slice(0, 10); // Show up to 10 latest
 
         if (!list) return;
 
@@ -69,7 +88,7 @@ const Dashboard = {
                 <td>${m.productName}</td>
                 <td style="font-weight: 700;">${m.quantity > 0 ? '+' : ''}${m.quantity}</td>
                 <td>${m.location || m.source}</td>
-                <td><span class="badge ${m.status === 'Done' ? 'badge-success' : 'badge-warning'}">${m.status}</span></td>
+                <td><span class="badge ${m.status === 'Done' ? 'badge-success' : (m.status === 'Rejected' ? 'badge-danger' : 'badge-warning')}">${m.status}</span></td>
             `;
             list.appendChild(row);
         });

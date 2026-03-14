@@ -60,7 +60,7 @@
                         </div>
                     </div>
 
-                    <div class="card kpi-card">
+                    <div class="card kpi-card" style="cursor: pointer;" onclick="location.href='receipts.html'">
                         <div class="kpi-icon" style="background: #e7f3ff; color: #004085;">
                             <i data-lucide="arrow-down-to-line"></i>
                         </div>
@@ -70,7 +70,7 @@
                         </div>
                     </div>
 
-                    <div class="card kpi-card">
+                    <div class="card kpi-card" style="cursor: pointer;" onclick="location.href='delivery.html'">
                         <div class="kpi-icon" style="background: var(--primary-light); color: var(--primary);">
                             <i data-lucide="arrow-up-from-line"></i>
                         </div>
@@ -80,7 +80,7 @@
                         </div>
                     </div>
 
-                    <div class="card kpi-card">
+                    <div class="card kpi-card" style="cursor: pointer;" onclick="location.href='transfers.html'">
                         <div class="kpi-icon" style="background: #f3f4f6; color: #374151;">
                             <i data-lucide="arrow-right-left"></i>
                         </div>
@@ -89,10 +89,38 @@
                             <div class="value" id="kpi-scheduled-transfers">0</div>
                         </div>
                     </div>
+
+                    <div class="card kpi-card">
+                        <div class="kpi-icon" style="background: #d4edda; color: #155724;">
+                            <i data-lucide="check-circle"></i>
+                        </div>
+                        <div class="kpi-info">
+                            <h3>Accepted Receipts</h3>
+                            <div class="value" id="kpi-accepted-receipts">0</div>
+                        </div>
+                    </div>
+
+                    <div class="card kpi-card">
+                        <div class="kpi-icon" style="background: #f8d7da; color: #721c24;">
+                            <i data-lucide="alert-circle"></i>
+                        </div>
+                        <div class="kpi-info">
+                            <h3>Rejected Receipts</h3>
+                            <div class="value" id="kpi-rejected-receipts">0</div>
+                        </div>
+                    </div>
                 </div>
 
                 <div style="margin-top: 2rem;">
-                    <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">Recent Movement Ledger</h2>
+                    <div class="flex-between mb-2">
+                        <h2 style="font-size: 1.1rem; font-weight: 700;">Recent Movement Ledger</h2>
+                        <select id="status-filter" class="form-control" style="width: auto; height: 32px;">
+                            <option value="all">All Status</option>
+                            <option value="Ready">Ready</option>
+                            <option value="Done">Done</option>
+                            <option value="Rejected">Rejected</option>
+                        </select>
+                    </div>
                     <div class="table-responsive">
                         <table>
                             <thead>

@@ -12,6 +12,9 @@ const History = {
             filterBtn.addEventListener('click', () => this.renderHistory());
         }
         await this.renderHistory();
+
+        // Re-render if auth resolves late
+        window.addEventListener('auth-ready', () => this.renderHistory());
     },
 
     async renderHistory() {
@@ -21,11 +24,12 @@ const History = {
 
             const startDate = document.getElementById('start-date')?.value;
             const endDate = document.getElementById('end-date')?.value;
+            const typeFilter = document.getElementById('type-filter')?.value;
             
             let movements = await Storage.getMovements();
             
             // Filtering logic
-            if (startDate || endDate) {
+            if (startDate || endDate || typeFilter) {
                 const start = startDate ? new Date(startDate) : null;
                 const end = endDate ? new Date(endDate) : null;
                 if (start) start.setHours(0,0,0,0);
@@ -33,7 +37,9 @@ const History = {
 
                 movements = movements.filter(m => {
                     const mDate = new Date(m.date);
-                    return (!start || mDate >= start) && (!end || mDate <= end);
+                    const matchesDate = (!start || mDate >= start) && (!end || mDate <= end);
+                    const matchesType = !typeFilter || m.type === typeFilter;
+                    return matchesDate && matchesType;
                 });
             }
 

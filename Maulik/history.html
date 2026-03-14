@@ -27,6 +27,16 @@
                             <label style="font-size: 0.75rem;">To:</label>
                             <input type="date" id="end-date" style="height: 32px;">
                         </div>
+                        <div class="form-group mb-0" style="margin-bottom: 0;">
+                            <label style="font-size: 0.75rem;">Type:</label>
+                            <select id="type-filter" style="height: 32px;">
+                                <option value="">All Types</option>
+                                <option value="Receipt">Receipts</option>
+                                <option value="Delivery">Deliveries</option>
+                                <option value="Transfer">Transfers</option>
+                                <option value="Adjustment">Adjustments</option>
+                            </select>
+                        </div>
                         <button class="btn btn-primary" id="apply-filter" style="height: 32px; margin-top: 15px;">Filter</button>
                     </div>
                 </div>

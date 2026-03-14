@@ -22,6 +22,12 @@ const Adjustments = {
         if (form) {
             form.addEventListener('submit', (e) => this.handleSubmit(e));
         }
+
+        // Re-render if auth resolves late
+        window.addEventListener('auth-ready', () => {
+            this.renderList();
+            this.populateDropdowns();
+        });
     },
 
     async populateDropdowns() {

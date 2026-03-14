@@ -10,6 +10,7 @@ const Receipts = {
         window.openModal = () => document.getElementById('modal').classList.remove('hidden');
         window.closeModal = () => document.getElementById('modal').classList.add('hidden');
         window.validateReceipt = (id) => this.validate(id);
+        window.rejectReceipt = (id) => this.reject(id);
 
         try {
             await this.renderList();
@@ -22,6 +23,12 @@ const Receipts = {
         if (form) {
             form.addEventListener('submit', (e) => this.handleSubmit(e));
         }
+
+        // Re-render if auth resolves late
+        window.addEventListener('auth-ready', () => {
+            this.renderList();
+            this.populateDropdowns();
+        });
     },
 
     async populateDropdowns() {
@@ -37,7 +44,8 @@ const Receipts = {
         if (warehouseSelect) {
             warehouseSelect.innerHTML = settings.warehouses.map(w => {
                 const name = typeof w === 'string' ? w : w.name;
-                return `<option value="${name}">${name}</option>`;
+                const prefix = (typeof w !== 'string' && w.parent) ? '↳ ' : '';
+                return `<option value="${name}">${prefix}${name}</option>`;
             }).join('');
         }
     },
@@ -59,9 +67,14 @@ const Receipts = {
                 <td>${m.productName}</td>
                 <td>+${m.quantity}</td>
                 <td>${m.date}</td>
-                <td><span class="badge ${m.status === 'Done' ? 'badge-success' : 'badge-warning'}">${m.status}</span></td>
+                <td><span class="badge ${m.status === 'Done' ? 'badge-success' : (m.status === 'Rejected' ? 'badge-danger' : 'badge-warning')}">${m.status}</span></td>
                 <td>
-                    ${m.status === 'Ready' ? `<button class="btn btn-primary btn-sm" onclick="validateReceipt('${m.id}')">Validate</button>` : ''}
+                    <div style="display: flex; gap: 4px;">
+                        ${m.status === 'Ready' ? `
+                            <button class="btn btn-primary btn-sm" onclick="validateReceipt('${m.id}')">Validate</button>
+                            <button class="btn btn-light btn-sm" style="color: var(--danger)" onclick="rejectReceipt('${m.id}')">Reject</button>
+                        ` : ''}
+                    </div>
                 </td>
             `;
             list.appendChild(row);
@@ -128,6 +141,22 @@ const Receipts = {
             await Storage.saveMovement(m);
             await this.renderList();
         }
+    },
+
+    async reject(id) {
+        window.App.confirm(
+            "Reject Receipt",
+            "Are you sure you want to reject this receipt? This will move it to Rejected status and no stock will be added.",
+            async () => {
+                const movements = await Storage.getMovements();
+                const m = movements.find(move => move.id === id);
+                if (m) {
+                    m.status = 'Rejected';
+                    await Storage.saveMovement(m);
+                    await this.renderList();
+                }
+            }
+        );
     }
 };
 

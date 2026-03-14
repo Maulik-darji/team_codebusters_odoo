@@ -1,23 +1,55 @@
 import { db, auth } from './firebase-config.js';
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 /**
  * Storage Engine for IMS - Firestore Version
  * Manages persistent data in the cloud.
  */
 
+const DEFAULTS = {
+    warehouses: [
+        { name: 'Main Warehouse', code: 'MAIN', address: '123 Logistics Way, City' },
+        { name: 'Production Floor', code: 'PROD', address: 'Level 1, Factory Block B' },
+        { name: 'Rack A', code: 'R-A', address: 'Aisle 1, Section 5' },
+        { name: 'Rack B', code: 'R-B', address: 'Aisle 2, Section 3' }
+    ],
+    categories: ['Raw Material', 'Consumables', 'Finished Goods']
+};
+
 const Storage = {
     // Helper to get current user ID
     getUid() {
-        return auth.currentUser ? auth.currentUser.uid : 'guest';
+        if (auth.currentUser) return auth.currentUser.uid;
+        
+        // Fallback to localStorage for immediate availability on page load
+        const stored = localStorage.getItem('ims_current_user');
+        if (stored) {
+            const user = JSON.parse(stored);
+            if (user.isGuest) return 'guest';
+            return user.id || user.uid || 'guest'; // Check both common patterns
+        }
+        return 'guest';
     },
 
     // --- PRODUCTS ---
     async getProducts() {
         try {
-            const q = collection(db, 'products');
+            const uid = this.getUid();
+            const q = query(collection(db, 'products'), where('ownerId', '==', uid));
             const snap = await getDocs(q);
-            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+            // Support for legacy data (created before ownerId was added)
+            // We fetch all and filter in memory for orphaned records
+            const allSnap = await getDocs(collection(db, 'products'));
+            const legacy = allSnap.docs
+                .map(d => ({ id: d.id, ...d.data() }))
+                .filter(p => !p.ownerId);
+
+            // Combine and remove duplicates just in case
+            const combined = [...products, ...legacy];
+            const unique = Array.from(new Map(combined.map(p => [p.id, p])).values());
+            return unique;
         } catch (err) {
             console.error("Firestore getProducts error:", err);
             return [];
@@ -26,6 +58,7 @@ const Storage = {
 
     async saveProduct(product) {
         try {
+            product.ownerId = this.getUid();
             if (!product.id) {
                 const newDoc = doc(collection(db, 'products'));
                 product.id = newDoc.id;
@@ -51,18 +84,35 @@ const Storage = {
     // --- MOVEMENTS (Ledger) ---
     async getMovements() {
         try {
-            const q = query(collection(db, 'movements'), orderBy('timestamp', 'desc'));
+            const uid = this.getUid();
+            const q = query(
+                collection(db, 'movements'), 
+                where('ownerId', '==', uid)
+            );
             const snap = await getDocs(q);
-            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const movements = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+            // Legacy fallback for movements without owners
+            const allSnap = await getDocs(collection(db, 'movements'));
+            const legacy = allSnap.docs
+                .map(d => ({ id: d.id, ...d.data() }))
+                .filter(m => !m.ownerId);
+
+            const combined = [...movements, ...legacy];
+            // Sort in memory to avoid composite index requirement
+            combined.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            
+            const unique = Array.from(new Map(combined.map(m => [m.id, m])).values());
+            return unique;
         } catch (err) {
             console.error("Firestore getMovements error:", err);
-            alert("Database error: Could not fetch movements. Check your connection.");
             return [];
         }
     },
 
     async saveMovement(movement) {
         try {
+            movement.ownerId = this.getUid();
             const ref = movement.id ? doc(db, 'movements', movement.id) : doc(collection(db, 'movements'));
             movement.id = ref.id;
             movement.date = movement.date || new Date().toISOString().split('T')[0];
@@ -79,18 +129,23 @@ const Storage = {
     // --- SETTINGS (Warehouses, Categories) ---
     async getSettings() {
         try {
-            const docRef = doc(db, 'settings', 'global');
+            const docRef = doc(db, 'settings', this.getUid());
             const snap = await getDoc(docRef);
-            return snap.exists() ? snap.data() : { warehouses: [], categories: [] };
+            if (snap.exists()) {
+                return snap.data();
+            } else {
+                // If no settings exist, return defaults but don't save yet (seed will handle saving)
+                return { ...DEFAULTS, seeded: false };
+            }
         } catch (err) {
             console.error("Firestore getSettings error:", err);
-            return { warehouses: [], categories: [] };
+            return { ...DEFAULTS, seeded: false };
         }
     },
 
     async saveSettings(settings) {
         try {
-            await setDoc(doc(db, 'settings', 'global'), settings);
+            await setDoc(doc(db, 'settings', this.getUid()), settings);
         } catch (err) {
             console.error("Firestore saveSettings error:", err);
         }
@@ -169,27 +224,76 @@ const Storage = {
     // --- SEED DATA ---
     async seed() {
         try {
+            const uid = this.getUid();
+            if (uid === 'guest') return; // Don't persist guest seeds to shared doc if it's the same
+
             const settings = await this.getSettings();
             if (settings.seeded) return;
 
-            const defaultWarehouses = [
-                { name: 'Main Warehouse', code: 'MAIN', address: '123 Logistics Way, City' },
-                { name: 'Production Floor', code: 'PROD', address: 'Level 1, Factory Block B' },
-                { name: 'Rack A', code: 'R-A', address: 'Aisle 1, Section 5' },
-                { name: 'Rack B', code: 'R-B', address: 'Aisle 2, Section 3' }
-            ];
-            const defaultCategories = ['Raw Material', 'Consumables', 'Finished Goods'];
-
             await this.saveSettings({ 
                 seeded: true, 
-                warehouses: defaultWarehouses, 
-                categories: defaultCategories,
+                warehouses: settings.warehouses.length > 0 ? settings.warehouses : DEFAULTS.warehouses, 
+                categories: settings.categories.length > 0 ? settings.categories : DEFAULTS.categories,
                 sequences: {}
             });
 
-            console.log("Database seeded successfully!");
+            console.log("Database seeded successfully for UID:", uid);
         } catch (err) {
             console.error("Seed error:", err);
+        }
+    },
+
+    async searchAll(term) {
+        if (!term || term.length < 2) return { products: [], movements: [] };
+        
+        const termLower = term.toLowerCase();
+        const [products, movements] = await Promise.all([
+            this.getProducts(),
+            this.getMovements()
+        ]);
+
+        const filteredProducts = products.filter(p => 
+            p.name.toLowerCase().includes(termLower) || 
+            p.sku.toLowerCase().includes(termLower)
+        );
+
+        const filteredMovements = movements.filter(m => 
+            (m.id || '').toLowerCase().includes(termLower) ||
+            (m.productName || '').toLowerCase().includes(termLower) ||
+            (m.partner || '').toLowerCase().includes(termLower) ||
+            (m.type || '').toLowerCase().includes(termLower)
+        );
+
+        return {
+            products: filteredProducts.slice(0, 5),
+            movements: filteredMovements.slice(0, 5)
+        };
+    },
+
+    async wipeUserData() {
+        const uid = this.getUid();
+        if (!uid || uid === 'guest') return;
+
+        try {
+            // 1. Delete Settings
+            await deleteDoc(doc(db, 'settings', uid));
+
+            // 2. Delete Products
+            const pQuery = query(collection(db, 'products'), where('ownerId', '==', uid));
+            const pSnap = await getDocs(pQuery);
+            const pDeletes = pSnap.docs.map(d => deleteDoc(d.ref));
+            await Promise.all(pDeletes);
+
+            // 3. Delete Movements
+            const mQuery = query(collection(db, 'movements'), where('ownerId', '==', uid));
+            const mSnap = await getDocs(mQuery);
+            const mDeletes = mSnap.docs.map(d => deleteDoc(d.ref));
+            await Promise.all(mDeletes);
+
+            console.log("All cloud data wiped for user:", uid);
+        } catch (err) {
+            console.error("Wipe data error:", err);
+            throw err;
         }
     }
 };

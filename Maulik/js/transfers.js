@@ -25,6 +25,12 @@ const Transfers = {
         if (form) {
             form.addEventListener('submit', (e) => this.handleSubmit(e));
         }
+
+        // Re-render if auth resolves late
+        window.addEventListener('auth-ready', () => {
+            this.renderList();
+            this.populateDropdowns();
+        });
     },
 
     async populateDropdowns() {
@@ -40,7 +46,8 @@ const Transfers = {
         }
         const warehouseOptions = settings.warehouses.map(w => {
             const name = typeof w === 'string' ? w : w.name;
-            return `<option value="${name}">${name}</option>`;
+            const prefix = (typeof w !== 'string' && w.parent) ? '↳ ' : '';
+            return `<option value="${name}">${prefix}${name}</option>`;
         }).join('');
         if (sourceSelect) sourceSelect.innerHTML = warehouseOptions;
         if (destSelect) destSelect.innerHTML = warehouseOptions;

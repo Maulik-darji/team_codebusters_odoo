@@ -52,10 +52,14 @@ const Auth = {
                 try {
                     const userDoc = await getDoc(doc(db, 'users', user.uid));
                     const userData = userDoc.exists() ? userDoc.data() : { email: user.email };
+                    userData.id = user.uid; // Ensure ID is always set for Storage.getUid()
                     Storage.setCurrentUser(userData);
+                    window.dispatchEvent(new CustomEvent('auth-ready', { detail: userData }));
                 } catch (e) {
                     console.error("Auth helper error:", e);
-                    Storage.setCurrentUser({ email: user.email });
+                    const userData = { id: user.uid, email: user.email };
+                    Storage.setCurrentUser(userData);
+                    window.dispatchEvent(new CustomEvent('auth-ready', { detail: userData }));
                 }
                 
                 // If already logged in and on an auth page, redirect to landing
