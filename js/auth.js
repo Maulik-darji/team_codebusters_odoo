@@ -35,14 +35,20 @@ const Auth = {
             signupForm.addEventListener('submit', (e) => this.handleSignup(e));
         }
 
-        if (togglePassword) {
-            togglePassword.addEventListener('click', () => {
+        const passwordWrapper = document.querySelector('.password-toggle-wrapper');
+        if (passwordWrapper) {
+            passwordWrapper.addEventListener('click', (e) => {
+                const trigger = e.target.closest('#toggle-password');
+                if (!trigger) return;
+
                 const passwordInput = document.getElementById('password');
-                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-                passwordInput.setAttribute('type', type);
+                const isPassword = passwordInput.getAttribute('type') === 'password';
+                const newType = isPassword ? 'text' : 'password';
+                
+                passwordInput.setAttribute('type', newType);
                 
                 // Toggle icon
-                togglePassword.setAttribute('data-lucide', type === 'password' ? 'eye' : 'eye-off');
+                trigger.setAttribute('data-lucide', isPassword ? 'eye-off' : 'eye');
                 lucide.createIcons();
             });
         }
