@@ -2,15 +2,12 @@ import Storage from './storage.js';
 
 const AIAssistant = {
     messages: [],
-    currentModel: 'gemini-2.5-flash',
-    // Global API Key provided by site owner
-    defaultApiKey: 'AIzaSyBdsCjmDB8vkzpUgQURcu6nOsHl7qBT08I',
+    currentModel: 'gemini-1.5-flash',
+    // Using secure Firebase function for AI calls
+    functionUrl: 'https://us-central1-stockpilot-odoo.cloudfunctions.net/askAI',
 
     getApiUrl() {
-        // Use user-provided key if exists, otherwise fallback to site-wide default
-        const key = localStorage.getItem('GEMINI_API_KEY') || this.defaultApiKey;
-        if (!key) return null;
-        return `https://generativelanguage.googleapis.com/v1beta/models/${this.currentModel}:generateContent?key=${key}`;
+        return this.functionUrl;
     },
 
     init() {
@@ -66,9 +63,11 @@ const AIAssistant = {
                 
                 if (isHidden) {
                     settingsPanel.classList.remove('hidden');
-                    // Pre-fill with existing key if available
-                    const currentKey = localStorage.getItem('GEMINI_API_KEY') || this.defaultApiKey;
-                    if (currentKey) apiKeyInput.value = currentKey;
+                    // Note: API Key is now handled securely in the backend
+                    apiKeyInput.value = '********';
+                    apiKeyInput.disabled = true;
+                    saveApiKeyBtn.disabled = true;
+                    saveApiKeyBtn.textContent = 'Backend Managed';
                 } else {
                     settingsPanel.classList.add('hidden');
                 }
@@ -368,6 +367,7 @@ const AIAssistant = {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    model: this.currentModel,
                     contents: payload,
                     generationConfig: {
                         temperature: 0.1, // Lower temperature for more consistent behavior
