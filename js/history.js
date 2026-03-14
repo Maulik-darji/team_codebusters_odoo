@@ -10,6 +10,12 @@ const History = {
     async init() {
         const filterBtn = document.getElementById('apply-filter');
         if (filterBtn) filterBtn.addEventListener('click', () => this.renderHistory());
+        
+        // Auto-filter on change
+        ['start-date', 'end-date', 'type-filter'].forEach(id => {
+            document.getElementById(id)?.addEventListener('change', () => this.renderHistory());
+        });
+
         await this.renderHistory();
         window.addEventListener('auth-ready', () => this.renderHistory());
 
@@ -26,10 +32,11 @@ const History = {
     setView(view) {
         this.currentView = view;
         localStorage.setItem('stockpilot_history_view', view);
-        document.getElementById('view-list-btn').style.background = view === 'list' ? 'var(--primary)' : 'transparent';
-        document.getElementById('view-list-btn').style.color = view === 'list' ? 'white' : 'inherit';
-        document.getElementById('view-kanban-btn').style.background = view === 'kanban' ? 'var(--primary)' : 'transparent';
-        document.getElementById('view-kanban-btn').style.color = view === 'kanban' ? 'white' : 'inherit';
+        const isList = view === 'list';
+        document.getElementById('view-list-btn').style.background = isList ? 'var(--primary)' : 'transparent';
+        document.getElementById('view-list-btn').style.color = isList ? 'white' : 'var(--text-muted)';
+        document.getElementById('view-kanban-btn').style.background = !isList ? 'var(--primary)' : 'transparent';
+        document.getElementById('view-kanban-btn').style.color = !isList ? 'white' : 'var(--text-muted)';
         this.renderHistory();
     },
 
@@ -123,7 +130,7 @@ const History = {
                 movements = movements.filter(m => {
                     const mDate = new Date(m.date);
                     const matchesDate = (!start || mDate >= start) && (!end || mDate <= end);
-                    const matchesType = !typeFilter || m.type === typeFilter;
+                    const matchesType = !typeFilter || m.type.toLowerCase() === typeFilter.toLowerCase();
                     return matchesDate && matchesType;
                 });
             }
@@ -195,7 +202,7 @@ const History = {
 
                     types.forEach(type => {
                         if (grouped[type].length === 0) return;
-                        html += `<div style="background: var(--bg-color, #f9fafb); border-radius: 12px; padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+                        html += `<div style="background: var(--surface-muted); border-radius: 12px; padding: 1rem; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 1rem;">
                             <h3 style="font-size: 1rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; color: ${typeColors[type]}">
                                 ${type} 
                                 <span class="badge" style="background: ${typeColors[type]}; color: white;">${grouped[type].length}</span>

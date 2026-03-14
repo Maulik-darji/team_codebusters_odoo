@@ -34,7 +34,7 @@ const Products = {
         if (catForm) {
             catForm.addEventListener('submit', (e) => this.handleCategorySubmit(e));
         }
-        await this.renderCategoryList();
+        await this.populateSettings();
 
         // Final fallback: if auth resolves late, re-render
         window.addEventListener('auth-ready', () => {
@@ -57,7 +57,6 @@ const Products = {
             }).join('');
         }
         await this.renderCategoryList();
-
     },
 
     async renderList() {
@@ -89,8 +88,10 @@ const Products = {
                 </td>
                 <td>${p.warehouse || p.location || '-'}</td>
                 <td>
-                    <button class="btn btn-light btn-sm" onclick="editProduct('${p.id}')"><i data-lucide="edit-2" style="width: 14px;"></i></button>
-                    <button class="btn btn-light btn-sm" style="color: var(--danger)" onclick="deleteProduct('${p.id}')"><i data-lucide="trash-2" style="width: 14px;"></i></button>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="btn btn-light btn-sm" onclick="editProduct('${p.id}')"><i data-lucide="edit-2" style="width: 14px;"></i></button>
+                        <button class="btn btn-light btn-sm" style="color: var(--danger)" onclick="deleteProduct('${p.id}')"><i data-lucide="trash-2" style="width: 14px;"></i></button>
+                    </div>
                 </td>
             `;
             list.appendChild(row);
