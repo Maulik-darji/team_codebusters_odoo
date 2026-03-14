@@ -14,6 +14,7 @@ const Products = {
         window.openCategoryModal = () => document.getElementById('category-modal').classList.remove('hidden');
         window.closeCategoryModal = () => document.getElementById('category-modal').classList.add('hidden');
         window.deleteCategory = (name) => this.deleteCat(name);
+        window.renderProductsList = () => this.renderList();
 
 
         try {
@@ -80,14 +81,13 @@ const Products = {
                     <div style="display: flex; flex-direction: column; gap: 2px;">
                         <div>
                             <span style="font-weight: 700;">${p.stock}</span> 
-                            <span style="font-size: 0.75rem; color: var(--text-muted)">${p.unit}</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted)">${p.unit || 'Units'}</span>
                             <span class="badge ${lowText === 'IN STOCK' ? 'badge-success' : (lowText === 'LOW STOCK' ? 'badge-warning' : 'badge-danger')}" style="margin-left: 0.5rem;">${lowText}</span>
                         </div>
                         ${Number(p.reserved) > 0 ? `<div style="font-size: 0.7rem; color: var(--text-muted)">Reserved: ${p.reserved} | Avail: ${p.stock - p.reserved}</div>` : ''}
                     </div>
                 </td>
-                <td>${p.warehouse || '-'}</td>
-
+                <td>${p.warehouse || p.location || '-'}</td>
                 <td>
                     <button class="btn btn-light btn-sm" onclick="editProduct('${p.id}')"><i data-lucide="edit-2" style="width: 14px;"></i></button>
                     <button class="btn btn-light btn-sm" style="color: var(--danger)" onclick="deleteProduct('${p.id}')"><i data-lucide="trash-2" style="width: 14px;"></i></button>

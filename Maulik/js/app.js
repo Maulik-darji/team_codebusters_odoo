@@ -6,6 +6,7 @@ import Storage from './storage.js';
 
 const App = {
     init() {
+        this.initTheme();
         this.renderLayout();
         this.updateNavbarUser();
         this.highlightActiveMenu();
@@ -26,6 +27,31 @@ const App = {
         
         // Inject Confirmation Modal
         this.injectConfirmModal();
+    },
+
+    initTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        window.currentTheme = savedTheme;
+    },
+
+    toggleTheme() {
+        const newTheme = window.currentTheme === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        window.currentTheme = newTheme;
+        
+        // Update toggle icon
+        const icon = document.querySelector('#theme-toggle i');
+        if (icon && window.lucide) {
+            // Replace the whole element to trigger lucide
+            const newIcon = document.createElement('i');
+            newIcon.setAttribute('data-lucide', newTheme === 'light' ? 'moon' : 'sun');
+            newIcon.style.width = '18px';
+            newIcon.style.color = 'var(--text-main)';
+            icon.parentNode.replaceChild(newIcon, icon);
+            window.lucide.createIcons();
+        }
     },
 
     // Injects Sidebar and Navbar into the page
@@ -85,51 +111,35 @@ const App = {
                     <div id="search-results" class="hidden" style="position: absolute; top: 40px; left: 0; width: 450px; background: white; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid var(--border-color); z-index: 10000; padding: 1rem; max-height: 500px; overflow-y: auto;">
                     </div>
                 </div>
-                <div class="flex items-center gap-4" style="display: flex; align-items: center; gap: 20px;">
-                    <div id="notification-trigger" style="position: relative; cursor: pointer;">
-                        <i data-lucide="bell" style="width: 20px; color: #64748b;"></i>
-                        <span id="notif-badge" class="hidden" style="position: absolute; top: -5px; right: -5px; width: 12px; height: 12px; background: var(--danger); border-radius: 50%; border: 2px solid white;"></span>
-                        <div id="notif-dropdown" class="hidden" style="position: absolute; top: 40px; right: 0; width: 300px; background: white; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid var(--border-color); z-index: 10000; padding: 0.75rem; max-height: 400px; overflow-y: auto;">
-                            <div style="font-weight: 700; font-size: 0.85rem; margin-bottom: 0.75rem; color: var(--text-color);">Notifications</div>
+                <div class="flex items-center gap-4" style="display: flex; align-items: center; gap: 15px;">
+                    <button id="theme-toggle" class="btn btn-light" style="width: 36px; height: 36px; padding: 0; border-radius: 50%; border: 1px solid var(--border-color); background: var(--surface);" onclick="window.App.toggleTheme()">
+                        <i data-lucide="${window.currentTheme === 'light' ? 'moon' : 'sun'}" style="width: 18px; color: var(--text-main);"></i>
+                    </button>
+                    <div id="notification-trigger" style="position: relative; cursor: pointer; padding: 8px;">
+                        <i data-lucide="bell" style="width: 20px; color: var(--text-muted);"></i>
+                        <span id="notif-badge" class="hidden" style="position: absolute; top: 2px; right: 2px; width: 10px; height: 10px; background: var(--danger); border-radius: 50%; border: 2px solid var(--surface);"></span>
+                        <div id="notif-dropdown" class="hidden" style="position: absolute; top: 40px; right: 0; width: 300px; background: var(--surface); border-radius: 8px; box-shadow: var(--shadow-md); border: 1px solid var(--border-color); z-index: 10000; padding: 0.75rem; max-height: 400px; overflow-y: auto;">
+                            <div style="font-weight: 700; font-size: 0.85rem; margin-bottom: 0.75rem; color: var(--text-main);">Notifications</div>
                             <div id="notif-list"></div>
                         </div>
                     </div>
-                    <button id="ai-trigger" class="btn btn-primary btn-sm" style="display: flex; align-items: center; gap: 5px; background: linear-gradient(135deg, #6366f1, #a855f7); border: none;">
+                    <button id="ai-trigger" class="btn btn-primary btn-sm" style="display: flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #6366f1, #a855f7); border: none; padding: 0.5rem 1rem; border-radius: 20px;">
                         <i data-lucide="sparkles" style="width: 16px;"></i>
                         AI Assistant
                     </button>
-                <div class="user-profile flex items-center gap-2" style="display: flex; align-items:center; gap: 10px; cursor: pointer;" onclick="window.location.href='profile.html'">
-                    <span id="nav-username" style="font-size: 0.85rem; font-weight: 500;">Maulik Darji</span>
-                    <div id="nav-initials" style="width: 32px; height: 32px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem;">
-                        MD
+                    <div class="user-profile flex items-center gap-2" style="display: flex; align-items:center; gap: 10px; cursor: pointer; padding-left: 10px; border-left: 1px solid var(--border-color);" onclick="window.location.href='profile.html'">
+                        <div id="nav-initials" style="width: 32px; height: 32px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem;">
+                            MD
+                        </div>
+                        <div class="hidden-mobile">
+                            <div id="nav-username" style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">Maulik Darji</div>
+                            <div style="font-size: 0.7rem; color: var(--text-muted);">Administrator</div>
+                        </div>
                     </div>
                 </div>
             </div>
         `;
 
-        // Inject AI Sidebar if not exists
-        if (!document.getElementById('ai-sidebar')) {
-            const aiHtml = `
-                <div id="ai-sidebar" class="ai-sidebar hidden">
-                    <div class="ai-header">
-                        <div class="flex items-center gap-2">
-                            <i data-lucide="sparkles" style="color: #a855f7;"></i>
-                            <span style="font-weight: 700;">StockPilot AI</span>
-                        </div>
-                        <i data-lucide="x" id="ai-close" style="cursor: pointer; width: 20px;"></i>
-                    </div>
-                    <div id="ai-chat-messages" class="ai-messages">
-                        <div class="ai-msg bot">Hello! I'm your StockPilot AI. How can I help you manage your inventory today?</div>
-                    </div>
-                    <div class="ai-input-area">
-                        <input type="text" id="ai-input" placeholder="Ask AI to do something...">
-                        <button id="ai-send"><i data-lucide="send" style="width: 18px;"></i></button>
-                    </div>
-                </div>
-            `;
-            document.body.insertAdjacentHTML('beforeend', aiHtml);
-            if (window.lucide) window.lucide.createIcons();
-        }
     },
 
     updateNavbarUser() {
@@ -402,18 +412,127 @@ const App = {
     },
 
     initAI() {
+        // 1. Inject AI Sidebar if not exists
+        if (!document.getElementById('ai-sidebar')) {
+            const aiHtml = `
+                <div id="ai-sidebar" class="ai-sidebar hidden">
+                    <div id="ai-resizer" class="ai-resizer"></div>
+                    <div class="ai-header">
+                        <div class="flex-between w-full">
+                            <div class="flex items-center gap-2" style="display: flex; align-items: center; gap: 8px;">
+                                <i data-lucide="sparkles" style="color: #a855f7;"></i>
+                                <h3 class="font-bold text-lg">StockPilot AI</h3>
+                            </div>
+                            <div class="flex items-center gap-3" style="display: flex; align-items: center; gap: 12px;">
+                                <button id="ai-settings-btn" title="AI Settings" style="background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; border-radius: 6px;" onmouseover="this.style.background='var(--bg-body)'" onmouseout="this.style.background='none'"><i data-lucide="settings" style="width: 18px; height: 18px;"></i></button>
+                                <button id="ai-history-btn" title="View History" style="background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; border-radius: 6px;" onmouseover="this.style.background='var(--bg-body)'" onmouseout="this.style.background='none'"><i data-lucide="history" style="width: 18px; height: 18px;"></i></button>
+                                <button id="ai-close" title="Close" style="background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; border-radius: 6px;" onmouseover="this.style.background='var(--bg-body)'" onmouseout="this.style.background='none'"><i data-lucide="x" style="width: 18px; height: 18px;"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- History Panel -->
+                    <div id="ai-history-panel" class="ai-panel hidden">
+                        <div class="p-3 border-b flex-between items-center bg-white sticky top-0" style="display: flex; justify-content: space-between; align-items: center;">
+                            <h4 class="font-bold text-sm">Chat History</h4>
+                            <button id="ai-clear-history" class="text-xs text-red-500 hover:underline">Clear All</button>
+                        </div>
+                        <div id="ai-history-list" class="ai-history-list"></div>
+                    </div>
+
+                    <!-- Settings Panel -->
+                    <div id="ai-settings-panel" class="ai-panel hidden">
+                        <div class="p-4 border-b flex-between" style="display: flex; justify-content: space-between; align-items: center;">
+                            <h4 class="font-bold">AI Settings</h4>
+                            <button id="ai-settings-close" class="text-xs text-gray-500 hover:underline">Close</button>
+                        </div>
+                        <div class="p-4 flex flex-col gap-4" style="display: flex; flex-direction: column; gap: 16px;">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">Gemini API Key (Optional Override)</label>
+                                <div class="flex gap-2" style="display: flex; gap: 8px;">
+                                    <input type="password" id="ai-api-key-input" placeholder="Paste your key here..." class="flex-1 text-sm p-2 border rounded outline-none" style="border-color: #e2e8f0; width: 100%;">
+                                    <button id="ai-save-api-key" class="bg-indigo-600 text-white text-xs px-3 py-2 rounded font-semibold hover:bg-indigo-700 transition">Save</button>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-2">By default, the site's global key is used. Use this to use your own key.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="ai-chat-messages" class="ai-messages">
+                        <div class="ai-msg bot">Hello! I'm your StockPilot AI. How can I help you manage your inventory today?</div>
+                    </div>
+
+                    <div class="ai-input-area">
+                        <div class="ai-input-container">
+                            <div class="flex-between items-center w-full mb-1">
+                                <select id="ai-model-select" style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 12px; font-size: 0.8rem; color: #64748b; width: fit-content; outline: none;">
+                                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                    <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                </select>
+                            </div>
+                            <div class="ai-input-row">
+                                <textarea id="ai-input" placeholder="Ask AI to do something..." rows="1"></textarea>
+                                <button id="ai-send"><i data-lucide="send" style="width: 18px;"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', aiHtml);
+            if (window.lucide) window.lucide.createIcons();
+        }
+
+        // 2. Setup Listeners
         const trigger = document.getElementById('ai-trigger');
-        const close = document.getElementById('ai-close');
         const sidebar = document.getElementById('ai-sidebar');
+        const closeBtn = document.getElementById('ai-close');
 
-        if (!trigger || !sidebar) return;
+        if (trigger && sidebar) {
+            trigger.onclick = (e) => {
+                e.preventDefault();
+                const isOpening = sidebar.classList.contains('hidden');
+                sidebar.classList.toggle('hidden');
+                
+                // If opening, scroll to bottom
+                if (isOpening && window.AIAssistant) {
+                    window.AIAssistant.scrollToBottom();
+                }
+            };
+        }
+        if (closeBtn && sidebar) {
+            closeBtn.onclick = () => sidebar.classList.add('hidden');
+        }
 
-        trigger.onclick = () => sidebar.classList.toggle('hidden');
-        close.onclick = () => sidebar.classList.add('hidden');
+        // 3. Resizing Logic
+        const resizer = document.getElementById('ai-resizer');
+        let isResizing = false;
 
-        // Dynamically load the AI logic module
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.body.style.cursor = 'ew-resize';
+            document.body.style.userSelect = 'none';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            const newWidth = window.innerWidth - e.clientX;
+            if (newWidth > 300 && newWidth < 800) {
+                sidebar.style.width = newWidth + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isResizing = false;
+            document.body.style.cursor = 'default';
+            document.body.style.userSelect = 'auto';
+        });
+
+        // 4. Load AI Assistant Logic
         import('./ai-assistant.js').then(m => {
-            m.default.init();
+            if (m.default && typeof m.default.init === 'function') {
+                m.default.init();
+            }
         }).catch(err => console.error("AI Module load error:", err));
     }
 };
