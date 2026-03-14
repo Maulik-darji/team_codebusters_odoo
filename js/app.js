@@ -144,9 +144,9 @@ const App = {
                         <i data-lucide="menu" style="width: 24px; color: var(--text-main);"></i>
                     </button>
                     <div class="search-wrapper" style="position: relative; width: 330px;">
-                        <i data-lucide="search" style="position: absolute; left: 10px; top: 8px; width: 16px; color: #999"></i>
-                        <input type="text" id="global-search" placeholder="Search products, SKU, refs..." style="padding-left: 2.5rem; height: 32px; width: 100%;">
-                        <div id="search-results" class="hidden" style="position: absolute; top: 40px; left: 0; width: 450px; background: white; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid var(--border-color); z-index: 10000; padding: 1rem; max-height: 500px; overflow-y: auto;">
+                        <i data-lucide="search" style="position: absolute; left: 10px; top: 8px; width: 16px; color: var(--text-muted);"></i>
+                        <input type="text" id="global-search" placeholder="Search products, SKU, refs..." style="padding-left: 2.5rem; height: 32px; width: 100%; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface); color: var(--text-main);">
+                        <div id="search-results" class="hidden" style="position: absolute; top: 40px; left: 0; width: 450px; background: var(--surface); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid var(--border-color); z-index: 10000; padding: 1rem; max-height: 500px; overflow-y: auto;">
                         </div>
                     </div>
                 </div>
@@ -257,19 +257,19 @@ const App = {
 
         let html = '';
         if (data.products.length > 0) {
-            html += '<div style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; margin: 0.5rem 0 0.5rem 0.5rem; text-transform: uppercase;">Products</div>';
+            html += '<div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin: 0.5rem 0 0.5rem 0.5rem; text-transform: uppercase;">Products</div>';
             data.products.forEach(p => {
                 html += `
                     <a href="products.html" class="search-item" style="display: block; padding: 0.75rem; text-decoration: none; color: inherit; border-radius: 6px;">
                         <div style="font-weight: 600; font-size: 0.9rem;">${p.name}</div>
-                        <div style="font-size: 0.75rem; color: #94a3b8;">SKU: ${p.sku} • Stock: ${p.stock}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">SKU: ${p.sku} • Stock: ${p.stock}</div>
                     </a>
                 `;
             });
         }
 
         if (data.movements.length > 0) {
-            html += '<div style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; margin: 1rem 0 0.5rem 0.5rem; text-transform: uppercase;">Operations (Receipts/Deliveries)</div>';
+            html += '<div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin: 1rem 0 0.5rem 0.5rem; text-transform: uppercase;">Operations (Receipts/Deliveries)</div>';
             data.movements.forEach(m => {
                 const page = m.type === 'Receipt' ? 'receipts.html' : (m.type === 'Delivery' ? 'delivery.html' : 'transfers.html');
                 const badgeClass = m.status === 'Done' ? 'badge-success' : (m.status === 'Rejected' ? 'badge-danger' : 'badge-warning');
@@ -279,7 +279,7 @@ const App = {
                             <span style="font-weight: 600; font-size: 0.85rem; font-family: monospace;">${m.id}</span>
                             <span class="badge ${badgeClass}" style="transform: scale(0.8)">${m.status}</span>
                         </div>
-                        <div style="font-size: 0.75rem; color: #94a3b8;">${m.type} • ${m.productName} • ${m.date}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">${m.type} • ${m.productName} • ${m.date}</div>
                     </a>
                 `;
             });
@@ -292,7 +292,7 @@ const App = {
             const style = document.createElement('style');
             style.id = 'search-styles';
             style.textContent = `
-                .search-item:hover { background: #f8fafc; color: var(--primary) !important; }
+                .search-item:hover { background: var(--surface-muted); color: var(--primary) !important; }
             `;
             document.head.appendChild(style);
         }
@@ -380,13 +380,13 @@ const App = {
         }
 
         list.innerHTML = notifs.map(n => `
-            <a href="${n.link}" class="notif-item" style="display: flex; gap: 10px; padding: 0.75rem; text-decoration: none; border-radius: 6px; margin-bottom: 5px;">
-                <div style="flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: ${n.type === 'danger' ? '#fee2e2' : (n.type === 'warning' ? '#fef3c7' : '#e0f2fe')}; color: ${n.type === 'danger' ? '#ef4444' : (n.type === 'warning' ? '#f59e0b' : '#0ea5e9')};">
+            <a href="${n.link}" class="notif-item" style="display: flex; gap: 10px; padding: 0.75rem; text-decoration: none; border-radius: 6px; margin-bottom: 5px; transition: all 0.2s;">
+                <div style="flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: ${n.type === 'danger' ? 'var(--card-danger-bg)' : (n.type === 'warning' ? 'var(--warning-light, rgba(245,158,11,0.1))' : 'var(--primary-light)')}; color: ${n.type === 'danger' ? 'var(--danger)' : (n.type === 'warning' ? 'var(--warning)' : 'var(--primary)')};">
                     <i data-lucide="${n.icon}" style="width: 16px;"></i>
                 </div>
                 <div style="flex: 1;">
-                    <div style="font-weight: 600; font-size: 0.8rem; color: var(--text-color);">${n.title}</div>
-                    <div style="font-size: 0.75rem; color: #64748b;">${n.message}</div>
+                    <div style="font-weight: 600; font-size: 0.8rem; color: var(--text-main);">${n.title}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">${n.message}</div>
                 </div>
             </a>
         `).join('');
@@ -409,8 +409,8 @@ const App = {
 
         const modalHtml = `
             <div id="ims-confirm-modal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; animation: fadeIn 0.2s ease;">
-                <div class="card" style="width: 100%; max-width: 400px; padding: 2rem; text-align: center; transform: scale(1); animation: zoomIn 0.2s ease;">
-                    <div id="ims-confirm-icon" style="margin-bottom: 1.5rem; display: inline-flex; width: 64px; height: 64px; background: #fee2e2; color: #ef4444; border-radius: 50%; align-items: center; justify-content: center;">
+                <div class="card" style="width: 100%; max-width: 400px; padding: 2rem; text-align: center; transform: scale(1); animation: zoomIn 0.2s ease; border: 1px solid var(--border-color);">
+                    <div id="ims-confirm-icon" style="margin-bottom: 1.5rem; display: inline-flex; width: 64px; height: 64px; background: var(--card-danger-bg); color: var(--danger); border-radius: 50%; align-items: center; justify-content: center;">
                         <i data-lucide="alert-triangle" style="width: 32px; height: 32px;"></i>
                     </div>
                     <h2 id="ims-confirm-title" style="margin-bottom: 0.5rem; font-size: 1.25rem; font-weight: 700;">Are you sure?</h2>
@@ -526,7 +526,7 @@ const App = {
 
                     <div id="ai-chat-messages" class="ai-messages">
                         <div class="ai-msg bot">
-                            <strong>Hello!</strong> 👋 I'm your StockPilot assistant. How can I help you manage your inventory today?
+                            <strong>Hello!</strong> 👋 I'm your StockPilot assistant. How can I help you manage your inventory today. Note please use Gemini 2.5 version?
                         </div>
                     </div>
 

@@ -30,6 +30,10 @@
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     --radius-md: 0.5rem;
 
+    --input-readonly: #f1f5f9;
+    --surface-muted: #f8fafc;
+    --card-danger-bg: #fff5f5;
+
     --ai-bg: rgba(255, 255, 255, 0.8);
     --ai-header-bg: #ffffff;
     --ai-input-bg: #f1f5f9;
@@ -50,6 +54,10 @@
 
     --primary-light: rgba(79, 70, 229, 0.1);
     
+    --input-readonly: #2d2d2d;
+    --surface-muted: #1e1e1e;
+    --card-danger-bg: rgba(239, 68, 68, 0.1);
+
     --ai-bg: rgba(25, 25, 25, 0.9);
     --ai-header-bg: #242424;
     --ai-input-bg: #2d2d2d;

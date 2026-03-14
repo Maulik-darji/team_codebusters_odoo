@@ -136,7 +136,7 @@ const Products = {
         if (!list) return;
         const settings = await Storage.getSettings();
         list.innerHTML = settings.categories.map(c => `
-            <div class="flex-between mb-2" style="padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+            <div class="flex-between mb-2" style="padding: 0.5rem; background: var(--surface-muted); border-radius: 4px; border: 1px solid var(--border-color);">
                 <span>${c}</span>
                 <button class="btn btn-light btn-sm" style="color: var(--danger)" onclick="deleteCategory('${c}')"><i data-lucide="x" style="width: 14px;"></i></button>
             </div>

@@ -67,10 +67,11 @@ const Receipts = {
     setView(view) {
         this.currentView = view;
         localStorage.setItem('stockpilot_receipts_view', view);
-        document.getElementById('view-list-btn').style.background = view === 'list' ? 'var(--primary)' : 'transparent';
-        document.getElementById('view-list-btn').style.color = view === 'list' ? 'white' : 'inherit';
-        document.getElementById('view-kanban-btn').style.background = view === 'kanban' ? 'var(--primary)' : 'transparent';
-        document.getElementById('view-kanban-btn').style.color = view === 'kanban' ? 'white' : 'inherit';
+        const isList = view === 'list';
+        document.getElementById('view-list-btn').style.background = isList ? 'var(--primary)' : 'transparent';
+        document.getElementById('view-list-btn').style.color = isList ? 'white' : 'var(--text-muted)';
+        document.getElementById('view-kanban-btn').style.background = !isList ? 'var(--primary)' : 'transparent';
+        document.getElementById('view-kanban-btn').style.color = !isList ? 'white' : 'var(--text-muted)';
         this.renderList();
     },
 
@@ -149,8 +150,8 @@ const Receipts = {
 
                 statuses.forEach(status => {
                     if (grouped[status].length === 0) return;
-                    html += `<div style="background: var(--bg-color, #f9fafb); border-radius: 12px; padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
-                        <h3 style="font-size: 1rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                    html += `<div style="background: var(--surface-muted); border-radius: 12px; padding: 1rem; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 1rem;">
+                        <h3 style="font-size: 1rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; color: var(--text-main);">
                             ${status} 
                             <span class="badge ${status === 'Done' ? 'badge-success' : (status === 'Rejected' ? 'badge-danger' : 'badge-warning')}">${grouped[status].length}</span>
                         </h3>
