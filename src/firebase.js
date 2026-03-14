@@ -20,6 +20,6 @@ console.log("Initializing Firebase for Project ID:", firebaseConfig.projectId);
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = getFirestore(app, "stockpilot-new");
 
 export { app, analytics, auth, db };

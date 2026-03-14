@@ -39,11 +39,14 @@ const Auth = {
 
             if (user) {
                 // Fetch extra details from Firestore if needed
-                const userDoc = await getDoc(doc(db, 'users', user.uid));
-                const userData = userDoc.exists() ? userDoc.data() : { email: user.email };
-                Storage.setCurrentUser(userData);
-                
-                if (isAuthPage) window.location.href = 'index.html';
+                try {
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    const userData = userDoc.exists() ? userDoc.data() : { email: user.email };
+                    Storage.setCurrentUser(userData);
+                } catch (e) {
+                    console.error("Auth helper error:", e);
+                    Storage.setCurrentUser({ email: user.email });
+                }
             } else if (!isGuest && !isAuthPage) {
                 window.location.href = 'login.html';
             }
@@ -62,7 +65,8 @@ const Auth = {
 
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            // Redirect happens in onAuthStateChanged
+            alert("Signed in successfully!");
+            window.location.href = 'index.html';
         } catch (err) {
             errorEl.textContent = "Login Failed: " + err.message;
             errorEl.classList.remove('hidden');
@@ -93,6 +97,7 @@ const Auth = {
             const user = userCredential.user;
 
             // 3. Store in Firestore
+            console.log("Creating user doc for UID:", user.uid);
             await setDoc(doc(db, 'users', user.uid), {
                 id: user.uid,
                 loginId: loginId.toLowerCase(),
@@ -100,7 +105,8 @@ const Auth = {
                 createdAt: new Date().toISOString()
             });
 
-            // Redirect happens in onAuthStateChanged
+            alert("Account created and synced to cloud! Redirecting...");
+            window.location.href = 'index.html';
         } catch (err) {
             errorEl.textContent = "Signup Failed: " + err.message;
             errorEl.classList.remove('hidden');

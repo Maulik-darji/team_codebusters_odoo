@@ -50,10 +50,17 @@
                     </div>
                 </div>
 
-                <div class="card mt-4" style="margin-top: 2rem;">
-                    <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">Data Management</h2>
-                    <p class="text-muted mb-2" style="font-size: 0.875rem;">Resetting the system will clear all products and movements.</p>
-                    <button class="btn btn-light" style="color: var(--danger); border-color: var(--danger);" onclick="resetSystem()">Reset Entire Database</button>
+                <div class="card mt-4" style="border-color: var(--danger); background: #fff5f5;">
+                    <div class="flex-between">
+                        <div>
+                            <h3 style="color: var(--danger); margin-bottom: 0.5rem;">Data Management</h3>
+                            <p class="text-muted" style="font-size: 0.875rem;">Force sync default data to Firestore if your database is empty.</p>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-primary" onclick="window.forceSeed()" style="background: var(--success); border-color: var(--success);">Force Cloud Sync</button>
+                            <button class="btn" onclick="window.resetSystem()" style="background: #fff; border-color: var(--danger); color: var(--danger);">Reset Session</button>
+                        </div>
+                    </div>
                 </div>
             </main>
         </div>
@@ -89,37 +96,52 @@
         import Storage from './js/storage.js';
 
         async function renderSettings() {
-            const settings = await Storage.getSettings();
-            const wList = document.getElementById('warehouse-list');
-            const cList = document.getElementById('category-list');
+            try {
+                const settings = await Storage.getSettings();
+                const wList = document.getElementById('warehouse-list');
+                const cList = document.getElementById('category-list');
 
-            if (!wList || !cList) return;
+                if (!wList || !cList) return;
 
-            wList.innerHTML = settings.warehouses.map(w => `
-                <tr>
-                    <td><strong>${w.name}</strong></td>
-                    <td style="font-family: monospace;">${w.code || '-'}</td>
-                    <td class="text-muted" style="font-size: 0.75rem;">${w.address || '-'}</td>
-                    <td>
-                        <i data-lucide="trash-2" style="width: 14px; cursor: pointer; color: var(--danger)" onclick="window.removeWarehouse('${w.name}')"></i>
-                    </td>
-                </tr>
-            `).join('');
+                wList.innerHTML = settings.warehouses.map(w => `
+                    <tr>
+                        <td><strong>${w.name}</strong></td>
+                        <td style="font-family: monospace;">${w.code || '-'}</td>
+                        <td class="text-muted" style="font-size: 0.75rem;">${w.address || '-'}</td>
+                        <td>
+                            <i data-lucide="trash-2" style="width: 14px; cursor: pointer; color: var(--danger)" onclick="window.removeWarehouse('${w.name}')"></i>
+                        </td>
+                    </tr>
+                `).join('');
 
-            cList.innerHTML = settings.categories.map(c => `
-                <div class="flex-between" style="padding: 0.5rem; background: var(--bg-body); border-radius: 4px; border: 1px solid var(--border-color);">
-                    <span>${c}</span>
-                    <i data-lucide="trash-2" style="width: 14px; cursor: pointer; color: var(--danger)" onclick="window.removeCategory('${c}')"></i>
-                </div>
-            `).join('');
-            
-            if (window.lucide) window.lucide.createIcons();
+                cList.innerHTML = settings.categories.map(c => `
+                    <div class="flex-between" style="padding: 0.5rem; background: var(--bg-body); border-radius: 4px; border: 1px solid var(--border-color);">
+                        <span>${c}</span>
+                        <i data-lucide="trash-2" style="width: 14px; cursor: pointer; color: var(--danger)" onclick="window.removeCategory('${c}')"></i>
+                    </div>
+                `).join('');
+                
+                if (window.lucide) window.lucide.createIcons();
+            } catch (err) {
+                console.error("Settings display error:", err);
+            }
         }
 
         window.openWarehouseModal = () => document.getElementById('warehouse-modal').classList.remove('hidden');
         window.closeWarehouseModal = () => {
             document.getElementById('warehouse-modal').classList.add('hidden');
             document.getElementById('warehouse-form').reset();
+        };
+
+        window.forceSeed = async () => {
+            try {
+                alert("Attempting to sync default data to Firestore...");
+                await Storage.seed();
+                alert("Sync completed! Check your Firestore console.");
+                await renderSettings();
+            } catch (err) {
+                alert("Sync failed: " + err.message);
+            }
         };
 
         document.getElementById('warehouse-form').addEventListener('submit', async (e) => {

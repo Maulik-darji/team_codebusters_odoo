@@ -6,20 +6,25 @@ import Storage from './storage.js';
 
 const Delivery = {
     async init() {
-        await this.renderList();
-        await this.populateDropdowns();
-
-        const form = document.getElementById('delivery-form');
-        if (form) {
-            form.addEventListener('submit', (e) => this.handleSubmit(e));
-        }
-
+        // Attach window functions immediately
         window.openModal = () => document.getElementById('modal').classList.remove('hidden');
         window.closeModal = () => {
             document.getElementById('modal').classList.add('hidden');
             document.getElementById('stock-error').classList.add('hidden');
         };
         window.validateDelivery = (id) => this.validate(id);
+
+        try {
+            await this.renderList();
+            await this.populateDropdowns();
+        } catch (err) {
+            console.error("Failed to initialize Delivery data:", err);
+        }
+
+        const form = document.getElementById('delivery-form');
+        if (form) {
+            form.addEventListener('submit', (e) => this.handleSubmit(e));
+        }
     },
 
     async populateDropdowns() {

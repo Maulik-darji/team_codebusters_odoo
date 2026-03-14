@@ -6,17 +6,22 @@ import Storage from './storage.js';
 
 const Adjustments = {
     async init() {
-        await this.renderList();
-        await this.populateDropdowns();
+        // Attach window functions immediately
+        window.openModal = () => document.getElementById('modal').classList.remove('hidden');
+        window.closeModal = () => document.getElementById('modal').classList.add('hidden');
+        window.updateRecordedQty = () => this.updateRecorded();
+
+        try {
+            await this.renderList();
+            await this.populateDropdowns();
+        } catch (err) {
+            console.error("Failed to initialize Adjustments data:", err);
+        }
 
         const form = document.getElementById('adjustment-form');
         if (form) {
             form.addEventListener('submit', (e) => this.handleSubmit(e));
         }
-
-        window.openModal = () => document.getElementById('modal').classList.remove('hidden');
-        window.closeModal = () => document.getElementById('modal').classList.add('hidden');
-        window.updateRecordedQty = () => this.updateRecorded();
     },
 
     async populateDropdowns() {

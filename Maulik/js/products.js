@@ -6,18 +6,24 @@ import Storage from './storage.js';
 
 const Products = {
     async init() {
-        await this.renderList();
-        await this.populateSettings();
+        // Attach window functions immediately to prevent "not a function" errors
+        window.openModal = () => document.getElementById('modal').classList.remove('hidden');
+        window.closeModal = () => document.getElementById('modal').classList.add('hidden');
+        window.deleteProduct = (id) => this.delete(id);
+        window.editProduct = (id) => this.edit(id);
+
+        try {
+            await this.renderList();
+            await this.populateSettings();
+        } catch (err) {
+            console.error("Failed to initialize Products data:", err);
+            // Non-blocking: UI still works but list might be empty or show error
+        }
 
         const form = document.getElementById('product-form');
         if (form) {
             form.addEventListener('submit', (e) => this.handleSubmit(e));
         }
-
-        window.openModal = () => document.getElementById('modal').classList.remove('hidden');
-        window.closeModal = () => document.getElementById('modal').classList.add('hidden');
-        window.deleteProduct = (id) => this.delete(id);
-        window.editProduct = (id) => this.edit(id);
     },
 
     async populateSettings() {
