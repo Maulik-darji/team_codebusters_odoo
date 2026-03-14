@@ -84,32 +84,8 @@ const App = {
             return;
         }
 
-        // Circular reveal animation logic
-        // Since event is no longer passed, the animation will always start from the center/top-center
-        const x = window.innerWidth / 2;
-        const y = 0;
-        const endRadius = Math.hypot(
-            Math.max(x, window.innerWidth - x),
-            Math.max(y, window.innerHeight - y)
-        );
-
-        const transition = document.startViewTransition(() => updateTheme());
-
-        await transition.ready;
-
-        document.documentElement.animate(
-            {
-                clipPath: [
-                    `circle(0px at ${x}px ${y}px)`,
-                    `circle(${endRadius}px at ${x}px ${y}px)`,
-                ],
-            },
-            {
-                duration: 400,
-                easing: 'ease-in-out',
-                pseudoElement: '::view-transition-new(root)',
-            }
-        );
+        // Use smooth UI crossfade provided by CSS view transitions
+        document.startViewTransition(() => updateTheme());
     },
 
     // Injects Sidebar and Navbar into the page
@@ -593,10 +569,17 @@ const App = {
         const closeBtn = document.getElementById('ai-close');
 
         if (trigger && sidebar) {
+            const isOpen = localStorage.getItem('ai_sidebar_open') === 'true';
+            if (isOpen) {
+                sidebar.classList.remove('hidden');
+                setTimeout(() => window.AIAssistant && window.AIAssistant.scrollToBottom(), 100);
+            }
+
             trigger.onclick = (e) => {
                 e.preventDefault();
                 const isOpening = sidebar.classList.contains('hidden');
                 sidebar.classList.toggle('hidden');
+                localStorage.setItem('ai_sidebar_open', isOpening);
                 
                 // If opening, scroll to bottom
                 if (isOpening && window.AIAssistant) {
@@ -605,7 +588,10 @@ const App = {
             };
         }
         if (closeBtn && sidebar) {
-            closeBtn.onclick = () => sidebar.classList.add('hidden');
+            closeBtn.onclick = () => {
+                sidebar.classList.add('hidden');
+                localStorage.setItem('ai_sidebar_open', 'false');
+            };
         }
 
         // 3. Resizing Logic

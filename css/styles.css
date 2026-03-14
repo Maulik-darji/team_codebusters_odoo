@@ -55,27 +55,32 @@
     --ai-input-bg: #2d2d2d;
 }
 
-/* View Transition API Animations */
+/* View Transition API Animations - Startup Crossfade Theme Animation */
 ::view-transition-old(root),
 ::view-transition-new(root) {
-    animation: none;
-    mix-blend-mode: normal;
+    animation-duration: 0.35s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    animation-fill-mode: both;
 }
 
 ::view-transition-old(root) {
+    animation-name: customThemeFadeOut;
     z-index: 1;
 }
 
 ::view-transition-new(root) {
-    z-index: 2147483647;
+    animation-name: customThemeFadeIn;
+    z-index: 2;
 }
 
-[data-theme="dark"]::view-transition-old(root) {
-    z-index: 2147483647;
+@keyframes customThemeFadeIn {
+    0% { opacity: 0; transform: scale(0.98); }
+    100% { opacity: 1; transform: scale(1); }
 }
 
-[data-theme="dark"]::view-transition-new(root) {
-    z-index: 1;
+@keyframes customThemeFadeOut {
+    0% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.02); }
 }
 
 /* Base Reset */

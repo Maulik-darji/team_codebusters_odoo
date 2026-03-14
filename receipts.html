@@ -19,6 +19,10 @@
                         <p class="text-muted">Receive goods from suppliers and increase stock</p>
                     </div>
                     <div style="display:flex; gap: 10px; align-items:center;">
+                        <div class="search-wrapper" style="position: relative; width: 250px;">
+                            <i data-lucide="search" style="position: absolute; left: 10px; top: 8px; width: 16px; color: #999"></i>
+                            <input type="text" id="receipt-search" placeholder="Search reference or supplier..." style="padding-left: 2.5rem; height: 32px; width: 100%; border-radius: 8px; border: 1px solid var(--border-color, #e5e7eb); background: var(--surface); color: var(--text-main);">
+                        </div>
                         <div style="display:flex; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; overflow:hidden;">
                             <button id="view-list-btn" onclick="Receipts.setView('list')" title="List View"
                                 style="padding: 8px 12px; background: var(--primary); color: white; border:none; cursor:pointer; display:flex; align-items:center; gap:4px; font-size:0.85rem;">

@@ -134,6 +134,32 @@ const Storage = {
         }
     },
 
+    // --- AI CHAT HISTORY ---
+    async getAIChatHistory() {
+        try {
+            const uid = this.getUid();
+            if (!uid || uid === 'guest') return null;
+            const snap = await getDoc(doc(db, 'ai_chats', uid));
+            if (snap.exists()) {
+                return snap.data();
+            }
+            return null;
+        } catch (err) {
+            console.error("Firestore getAIChatHistory error:", err);
+            return null;
+        }
+    },
+
+    async saveAIChatHistory(data) {
+        try {
+            const uid = this.getUid();
+            if (!uid || uid === 'guest') return;
+            await setDoc(doc(db, 'ai_chats', uid), data);
+        } catch (err) {
+            console.error("Firestore saveAIChatHistory error:", err);
+        }
+    },
+
     // --- SETTINGS (Warehouses, Categories) ---
     async getSettings() {
         try {

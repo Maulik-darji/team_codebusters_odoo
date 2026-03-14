@@ -18,6 +18,14 @@ const Delivery = {
         const savedView = localStorage.getItem('stockpilot_delivery_view');
         if (savedView) this.currentView = savedView;
 
+        const searchInput = document.getElementById('delivery-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.searchTerm = e.target.value.toLowerCase();
+                this.renderList();
+            });
+        }
+
         try {
             await this.renderList();
             await this.populateDropdowns();
@@ -56,6 +64,7 @@ const Delivery = {
         }
     },
 
+    searchTerm: '',
     currentView: 'list',
 
     setView(view) {
@@ -71,7 +80,15 @@ const Delivery = {
     async renderList() {
         const container = document.getElementById('view-container');
         const allMovements = await Storage.getMovements();
-        const movements = allMovements.filter(m => m.type === 'Delivery');
+        let movements = allMovements.filter(m => m.type === 'Delivery');
+        
+        if (this.searchTerm) {
+            movements = movements.filter(m => {
+                const ref = m.id ? m.id.toLowerCase() : '';
+                const partner = m.partner ? m.partner.toLowerCase() : '';
+                return ref.includes(this.searchTerm) || partner.includes(this.searchTerm);
+            });
+        }
         
         if (!container) return;
 

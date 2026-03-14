@@ -188,9 +188,13 @@ const AIAssistant = {
         if (userId) {
             const data = {
                 messages: this.messages,
-                model: this.currentModel
+                model: this.currentModel,
+                timestamp: Date.now()
             };
             localStorage.setItem(`ai_chat_${userId}`, JSON.stringify(data));
+            if (userId !== 'guest') {
+                Storage.saveAIChatHistory(data).catch(e => console.error("Sync error", e));
+            }
         }
     },
 
@@ -199,16 +203,38 @@ const AIAssistant = {
         if (!userId) return;
         
         const stored = localStorage.getItem(`ai_chat_${userId}`);
+        let localData = null;
         if (stored) {
-            const data = JSON.parse(stored);
-            this.messages = data.messages || [];
-            this.currentModel = data.model || 'gemini-2.5-flash';
+            localData = JSON.parse(stored);
+            this.applyHistoryData(localData);
+        }
 
-            const modelSelect = document.getElementById('ai-model-select');
-            if (modelSelect) modelSelect.value = this.currentModel;
+        if (userId !== 'guest') {
+            Storage.getAIChatHistory().then(cloudData => {
+                if (cloudData) {
+                    const localTs = localData ? (localData.timestamp || 0) : 0;
+                    const cloudTs = cloudData.timestamp || 0;
+                    const localMsgCount = localData ? (localData.messages || []).length : 0;
+                    const cloudMsgCount = (cloudData.messages || []).length;
 
-            // Re-render chat UI
-            const chatMessages = document.getElementById('ai-chat-messages');
+                    if (cloudTs > localTs || (cloudMsgCount > localMsgCount && cloudTs >= localTs)) {
+                        localStorage.setItem(`ai_chat_${userId}`, JSON.stringify(cloudData));
+                        this.applyHistoryData(cloudData);
+                    }
+                }
+            }).catch(e => console.error("Fetch sync error", e));
+        }
+    },
+
+    applyHistoryData(data) {
+        this.messages = data.messages || [];
+        this.currentModel = data.model || 'gemini-2.5-flash';
+
+        const modelSelect = document.getElementById('ai-model-select');
+        if (modelSelect) modelSelect.value = this.currentModel;
+
+        const chatMessages = document.getElementById('ai-chat-messages');
+        if (chatMessages) {
             chatMessages.innerHTML = ''; // Clear initial greeting
             
             this.messages.forEach(m => {
@@ -217,7 +243,7 @@ const AIAssistant = {
                     if (m.parts[0].text.includes("You are StockPilot AI")) return;
                     
                     const role = m.role === 'user' ? 'user' : 'bot';
-                    this.addMessageToUI(role, m.parts[0].text, false); // Don't save history when loading
+                    this.addMessageToUI(role, m.parts[0].text, false);
                 }
             });
             this.scrollToBottom();
@@ -951,6 +977,9 @@ const AIAssistant = {
     clearHistory() {
         const userId = Storage.getUid();
         localStorage.removeItem(`ai_chat_${userId}`);
+        if (userId && userId !== 'guest') {
+            Storage.saveAIChatHistory({ messages: [], model: this.currentModel, timestamp: Date.now() }).catch(e => console.error(e));
+        }
         this.messages = [];
         this.addMessageToUI('bot', '🧹 Chat history cleared.');
         const historyPanel = document.getElementById('ai-history-panel');
