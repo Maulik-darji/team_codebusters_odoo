@@ -45,10 +45,11 @@
     <script type="module">
         import Storage from './js/storage.js';
         
-        function renderHistory() {
+        async function renderHistory() {
             const list = document.getElementById('history-list');
-            const movements = Storage.getMovements();
+            const movements = await Storage.getMovements();
             
+            if (!list) return;
             list.innerHTML = movements.length ? '' : '<tr><td colspan="8" style="text-align:center; padding: 2.5rem;">No history records found.</td></tr>';
 
             movements.forEach(m => {
@@ -62,7 +63,7 @@
 
                 row.innerHTML = `
                     <td>${m.date}</td>
-                    <td style="font-family: monospace; font-size: 0.8rem;">#${m.id.split('_')[1].slice(-6)}</td>
+                    <td style="font-family: monospace; font-size: 0.85rem; font-weight: 600;">${m.id}</td>
                     <td style="color: ${typeColor}; font-weight: 700;">${m.type}</td>
                     <td style="font-weight: 600;">${m.productName}</td>
                     <td style="font-weight: 700;">${m.quantity > 0 ? '+' : ''}${m.quantity}</td>

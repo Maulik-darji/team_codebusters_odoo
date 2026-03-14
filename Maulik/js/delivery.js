@@ -5,9 +5,9 @@ import Storage from './storage.js';
  */
 
 const Delivery = {
-    init() {
-        this.renderList();
-        this.populateDropdowns();
+    async init() {
+        await this.renderList();
+        await this.populateDropdowns();
 
         const form = document.getElementById('delivery-form');
         if (form) {
@@ -22,24 +22,28 @@ const Delivery = {
         window.validateDelivery = (id) => this.validate(id);
     },
 
-    populateDropdowns() {
+    async populateDropdowns() {
         const productSelect = document.getElementById('d-product');
         const warehouseSelect = document.getElementById('d-warehouse');
         
-        const products = Storage.getProducts();
-        const settings = Storage.get('ims_settings') || { warehouses: [] };
+        const products = await Storage.getProducts();
+        const settings = await Storage.getSettings();
 
         if (productSelect) {
             productSelect.innerHTML = products.map(p => `<option value="${p.id}">${p.name} (${p.sku})</option>`).join('');
         }
         if (warehouseSelect) {
-            warehouseSelect.innerHTML = settings.warehouses.map(w => `<option value="${w}">${w}</option>`).join('');
+            warehouseSelect.innerHTML = settings.warehouses.map(w => {
+                const name = typeof w === 'string' ? w : w.name;
+                return `<option value="${name}">${name}</option>`;
+            }).join('');
         }
     },
 
-    renderList() {
+    async renderList() {
         const list = document.getElementById('delivery-list');
-        const movements = Storage.getMovements().filter(m => m.type === 'Delivery');
+        const allMovements = await Storage.getMovements();
+        const movements = allMovements.filter(m => m.type === 'Delivery');
         
         if (!list) return;
 
@@ -48,7 +52,7 @@ const Delivery = {
         movements.forEach(m => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>#${m.id.split('_')[1].slice(-4)}</td>
+                <td style="font-family: monospace; font-weight: 600;">${m.id}</td>
                 <td>${m.partner || 'Unknown'}</td>
                 <td>${m.productName}</td>
                 <td>-${m.quantity}</td>
@@ -62,12 +66,13 @@ const Delivery = {
         });
     },
 
-    handleSubmit(e) {
+    async handleSubmit(e) {
         e.preventDefault();
         const productId = document.getElementById('d-product').value;
         const qty = Number(document.getElementById('d-qty').value);
-        const products = Storage.getProducts();
+        const products = await Storage.getProducts();
         const product = products.find(p => p.id === productId);
+        const warehouseName = document.getElementById('d-warehouse').value;
 
         // Validation
         if (Number(product.stock) < qty) {
@@ -75,40 +80,46 @@ const Delivery = {
             return;
         }
 
+        // Find warehouse code
+        const warehouses = await Storage.getWarehouses();
+        const warehouse = warehouses.find(w => (typeof w === 'string' ? w : w.name) === warehouseName);
+        const warehouseCode = (warehouse && warehouse.code) || 'WH';
+
         const movement = {
+            id: await Storage.getNextSequence(warehouseCode, 'Delivery'),
             type: 'Delivery',
             partner: document.getElementById('d-customer').value,
             productId: productId,
             productName: product.name,
             quantity: qty,
-            location: document.getElementById('d-warehouse').value,
+            location: warehouseName,
             status: 'Ready'
         };
 
-        Storage.saveMovement(movement);
+        await Storage.saveMovement(movement);
         window.closeModal();
-        this.renderList();
+        await this.renderList();
         e.target.reset();
     },
 
-    validate(id) {
-        const movements = Storage.getMovements();
+    async validate(id) {
+        const movements = await Storage.getMovements();
         const index = movements.findIndex(m => m.id === id);
         
         if (index !== -1) {
             const m = movements[index];
             
             // Re-check stock just in case
-            const products = Storage.getProducts();
+            const products = await Storage.getProducts();
             const pIndex = products.findIndex(p => p.id === m.productId);
             
             if (pIndex !== -1 && Number(products[pIndex].stock) >= m.quantity) {
                 products[pIndex].stock = Number(products[pIndex].stock) - m.quantity;
-                Storage.set('ims_products', products);
+                await Storage.saveProduct(products[pIndex]);
                 
                 m.status = 'Done';
-                Storage.set('ims_movements', movements);
-                this.renderList();
+                await Storage.saveMovement(m);
+                await this.renderList();
             } else {
                 alert("Insufficient stock available to validate this delivery!");
             }

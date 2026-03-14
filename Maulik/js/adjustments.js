@@ -5,9 +5,9 @@ import Storage from './storage.js';
  */
 
 const Adjustments = {
-    init() {
-        this.renderList();
-        this.populateDropdowns();
+    async init() {
+        await this.renderList();
+        await this.populateDropdowns();
 
         const form = document.getElementById('adjustment-form');
         if (form) {
@@ -19,27 +19,29 @@ const Adjustments = {
         window.updateRecordedQty = () => this.updateRecorded();
     },
 
-    populateDropdowns() {
+    async populateDropdowns() {
         const productSelect = document.getElementById('a-product');
-        const products = Storage.getProducts();
+        const products = await Storage.getProducts();
 
         if (productSelect) {
             productSelect.innerHTML = products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-            this.updateRecorded();
+            await this.updateRecorded();
         }
     },
 
-    updateRecorded() {
+    async updateRecorded() {
         const productId = document.getElementById('a-product').value;
-        const product = Storage.getProducts().find(p => p.id === productId);
+        const products = await Storage.getProducts();
+        const product = products.find(p => p.id === productId);
         if (product) {
             document.getElementById('a-recorded').value = product.stock;
         }
     },
 
-    renderList() {
+    async renderList() {
         const list = document.getElementById('adjustment-list');
-        const movements = Storage.getMovements().filter(m => m.type === 'Adjustment');
+        const allMovements = await Storage.getMovements();
+        const movements = allMovements.filter(m => m.type === 'Adjustment');
         
         if (!list) return;
 
@@ -47,11 +49,10 @@ const Adjustments = {
 
         movements.forEach(m => {
             const diff = m.quantity;
-            const diffClass = diff >= 0 ? 'text-success' : 'text-danger';
             
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>#ADJ-${m.id.split('_')[1].slice(-4)}</td>
+                <td>#ADJ-${m.id.slice(-4)}</td>
                 <td>${m.productName}</td>
                 <td>${m.recordedQty}</td>
                 <td>${m.actualQty}</td>
@@ -63,19 +64,17 @@ const Adjustments = {
         });
     },
 
-    handleSubmit(e) {
+    async handleSubmit(e) {
         e.preventDefault();
         const productId = document.getElementById('a-product').value;
         const recorded = Number(document.getElementById('a-recorded').value);
         const actual = Number(document.getElementById('a-actual').value);
         const diff = actual - recorded;
 
-        const products = Storage.getProducts();
-        const pIndex = products.findIndex(p => p.id === productId);
+        const products = await Storage.getProducts();
+        const product = products.find(p => p.id === productId);
         
-        if (pIndex !== -1) {
-            const product = products[pIndex];
-            
+        if (product) {
             const movement = {
                 type: 'Adjustment',
                 productId: productId,
@@ -90,11 +89,11 @@ const Adjustments = {
 
             // Update physical stock immediately
             product.stock = actual;
-            Storage.set('ims_products', products);
+            await Storage.saveProduct(product);
+            await Storage.saveMovement(movement);
             
-            Storage.saveMovement(movement);
             window.closeModal();
-            this.renderList();
+            await this.renderList();
         }
     }
 };

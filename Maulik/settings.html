@@ -18,14 +18,26 @@
                     <p class="text-muted">Manage locations, categories, and system defaults</p>
                 </div>
 
-                <div class="grid-cards" style="grid-template-columns: 1fr 1fr;">
+                <div class="grid-cards" style="grid-template-columns: 2fr 1fr;">
                     <!-- Warehouses -->
                     <div class="card">
                         <div class="flex-between mb-2" style="margin-bottom: 1rem;">
                             <h2 style="font-size: 1.1rem; font-weight: 700;">Warehouses / Locations</h2>
-                            <button class="btn btn-primary btn-sm" onclick="addWarehouse()">+ Add</button>
+                            <button class="btn btn-primary btn-sm" onclick="openWarehouseModal()">+ Add Warehouse</button>
                         </div>
-                        <div id="warehouse-list" class="flex-col gap-2"></div>
+                        <div class="table-responsive">
+                            <table style="font-size: 0.875rem;">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Code</th>
+                                        <th>Address</th>
+                                        <th style="width: 50px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="warehouse-list"></tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <!-- Categories -->
@@ -47,24 +59,55 @@
         </div>
     </div>
 
+    <!-- Warehouse Modal -->
+    <div id="warehouse-modal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+        <div class="card" style="width: 100%; max-width: 450px;">
+            <h2 style="margin-bottom: 1.5rem;">Save Warehouse</h2>
+            <form id="warehouse-form">
+                <div class="form-group">
+                    <label>Warehouse Name</label>
+                    <input type="text" id="w-name" required placeholder="e.g. Main Hub">
+                </div>
+                <div class="form-group">
+                    <label>Shortcode</label>
+                    <input type="text" id="w-code" required placeholder="e.g. WH-01">
+                </div>
+                <div class="form-group">
+                    <label>Address</label>
+                    <textarea id="w-address" rows="3" placeholder="Full location address..."></textarea>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-light" onclick="closeWarehouseModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Warehouse</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script type="module" src="js/app.js"></script>
     <script type="module">
         import Storage from './js/storage.js';
 
-        function renderSettings() {
-            const settings = Storage.get('ims_settings');
+        async function renderSettings() {
+            const settings = await Storage.getSettings();
             const wList = document.getElementById('warehouse-list');
             const cList = document.getElementById('category-list');
 
+            if (!wList || !cList) return;
+
             wList.innerHTML = settings.warehouses.map(w => `
-                <div class="flex-between" style="padding: 0.5rem; background: #f8f9fa; border-radius: 4px; border: 1px solid #eee;">
-                    <span>${w}</span>
-                    <i data-lucide="trash-2" style="width: 14px; cursor: pointer; color: var(--danger)" onclick="window.removeWarehouse('${w}')"></i>
-                </div>
+                <tr>
+                    <td><strong>${w.name}</strong></td>
+                    <td style="font-family: monospace;">${w.code || '-'}</td>
+                    <td class="text-muted" style="font-size: 0.75rem;">${w.address || '-'}</td>
+                    <td>
+                        <i data-lucide="trash-2" style="width: 14px; cursor: pointer; color: var(--danger)" onclick="window.removeWarehouse('${w.name}')"></i>
+                    </td>
+                </tr>
             `).join('');
 
             cList.innerHTML = settings.categories.map(c => `
-                <div class="flex-between" style="padding: 0.5rem; background: #f8f9fa; border-radius: 4px; border: 1px solid #eee;">
+                <div class="flex-between" style="padding: 0.5rem; background: var(--bg-body); border-radius: 4px; border: 1px solid var(--border-color);">
                     <span>${c}</span>
                     <i data-lucide="trash-2" style="width: 14px; cursor: pointer; color: var(--danger)" onclick="window.removeCategory('${c}')"></i>
                 </div>
@@ -73,46 +116,52 @@
             if (window.lucide) window.lucide.createIcons();
         }
 
-        window.addWarehouse = () => {
-            const w = prompt("Enter Warehouse Name:");
-            if (w) {
-                const settings = Storage.get('ims_settings');
-                settings.warehouses.push(w);
-                Storage.set('ims_settings', settings);
-                renderSettings();
+        window.openWarehouseModal = () => document.getElementById('warehouse-modal').classList.remove('hidden');
+        window.closeWarehouseModal = () => {
+            document.getElementById('warehouse-modal').classList.add('hidden');
+            document.getElementById('warehouse-form').reset();
+        };
+
+        document.getElementById('warehouse-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const warehouse = {
+                name: document.getElementById('w-name').value,
+                code: document.getElementById('w-code').value.toUpperCase(),
+                address: document.getElementById('w-address').value
+            };
+            await Storage.saveWarehouse(warehouse);
+            closeWarehouseModal();
+            await renderSettings();
+        });
+
+        window.removeWarehouse = async (name) => {
+            if (confirm(`Remove warehouse "${name}"? This might orphan products assigned to it.`)) {
+                await Storage.removeWarehouse(name);
+                await renderSettings();
             }
         };
 
-        window.removeWarehouse = (w) => {
-            if (confirm(`Remove ${w}?`)) {
-                const settings = Storage.get('ims_settings');
-                settings.warehouses = settings.warehouses.filter(items => items !== w);
-                Storage.set('ims_settings', settings);
-                renderSettings();
-            }
-        };
-
-        window.addCategory = () => {
+        window.addCategory = async () => {
             const c = prompt("Enter Category Name:");
             if (c) {
-                const settings = Storage.get('ims_settings');
+                const settings = await Storage.getSettings();
                 settings.categories.push(c);
-                Storage.set('ims_settings', settings);
-                renderSettings();
+                await Storage.saveSettings(settings);
+                await renderSettings();
             }
         };
 
-        window.removeCategory = (c) => {
-            if (confirm(`Remove ${c}?`)) {
-                const settings = Storage.get('ims_settings');
+        window.removeCategory = async (c) => {
+            if (confirm(`Remove category "${c}"?`)) {
+                const settings = await Storage.getSettings();
                 settings.categories = settings.categories.filter(items => items !== c);
-                Storage.set('ims_settings', settings);
-                renderSettings();
+                await Storage.saveSettings(settings);
+                await renderSettings();
             }
         };
 
         window.resetSystem = () => {
-            if (confirm("CRITICAL: This will delete ALL products, movements, and data. Proceed?")) {
+            if (confirm("CRITICAL: This will locally clear your session. Proceed?")) {
                 localStorage.clear();
                 window.location.reload();
             }

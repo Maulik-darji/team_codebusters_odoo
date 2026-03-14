@@ -5,9 +5,9 @@ import Storage from './storage.js';
  */
 
 const Products = {
-    init() {
-        this.renderList();
-        this.populateSettings();
+    async init() {
+        await this.renderList();
+        await this.populateSettings();
 
         const form = document.getElementById('product-form');
         if (form) {
@@ -20,18 +20,21 @@ const Products = {
         window.editProduct = (id) => this.edit(id);
     },
 
-    populateSettings() {
+    async populateSettings() {
         const catSelect = document.getElementById('p-category');
         const locSelect = document.getElementById('p-location');
-        const settings = Storage.get('ims_settings');
+        const settings = await Storage.getSettings();
 
         if (catSelect) catSelect.innerHTML = settings.categories.map(c => `<option value="${c}">${c}</option>`).join('');
-        if (locSelect) locSelect.innerHTML = settings.warehouses.map(w => `<option value="${w}">${w}</option>`).join('');
+        if (locSelect) locSelect.innerHTML = settings.warehouses.map(w => {
+            const name = typeof w === 'string' ? w : w.name;
+            return `<option value="${name}">${name}</option>`;
+        }).join('');
     },
 
-    renderList() {
+    async renderList() {
         const list = document.getElementById('product-list');
-        const products = Storage.getProducts();
+        const products = await Storage.getProducts();
         
         if (!list) return;
 
@@ -39,7 +42,6 @@ const Products = {
 
         products.forEach(p => {
             const isLow = Number(p.stock) <= Number(p.reorderLevel);
-            const lowClass = isLow ? 'badge-warning' : 'badge-success';
             const lowText = isLow && Number(p.stock) > 0 ? 'LOW STOCK' : (Number(p.stock) <= 0 ? 'OUT OF STOCK' : 'IN STOCK');
 
             const row = document.createElement('tr');
@@ -64,7 +66,7 @@ const Products = {
         if (window.lucide) window.lucide.createIcons();
     },
 
-    handleSubmit(e) {
+    async handleSubmit(e) {
         e.preventDefault();
         const product = {
             id: document.getElementById('p-id')?.value || null,
@@ -77,22 +79,23 @@ const Products = {
             warehouse: document.getElementById('p-location').value
         };
 
-        Storage.saveProduct(product);
+        await Storage.saveProduct(product);
         window.closeModal();
-        this.renderList();
+        await this.renderList();
         e.target.reset();
         if (document.getElementById('p-id')) document.getElementById('p-id').value = '';
     },
 
-    delete(id) {
+    async delete(id) {
         if (confirm("Are you sure you want to delete this product?")) {
-            Storage.deleteProduct(id);
-            this.renderList();
+            await Storage.deleteProduct(id);
+            await this.renderList();
         }
     },
 
-    edit(id) {
-        const product = Storage.getProducts().find(p => p.id === id);
+    async edit(id) {
+        const products = await Storage.getProducts();
+        const product = products.find(p => p.id === id);
         if (product) {
             document.getElementById('modal-title').textContent = "Edit Product";
             document.getElementById('p-id').value = product.id;

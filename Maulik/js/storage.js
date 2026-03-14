@@ -1,110 +1,141 @@
+import { db, auth } from './firebase-config.js';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
 /**
- * Storage Engine for IMS
- * Manages localStorage with structured data and consistency.
+ * Storage Engine for IMS - Firestore Version
+ * Manages persistent data in the cloud.
  */
 
-const STORAGE_KEYS = {
-    PRODUCTS: 'ims_products',
-    MOVEMENTS: 'ims_movements',
-    USERS: 'ims_users',
-    CURRENT_USER: 'ims_current_user',
-    SETTINGS: 'ims_settings'
-};
-
 const Storage = {
-    // Generic Get
-    get(key) {
-        const data = localStorage.getItem(key);
-        return data ? JSON.parse(data) : [];
-    },
-
-    // Generic Set
-    set(key, data) {
-        localStorage.setItem(key, JSON.stringify(data));
+    // Helper to get current user ID
+    getUid() {
+        return auth.currentUser ? auth.currentUser.uid : 'guest';
     },
 
     // --- PRODUCTS ---
-    getProducts() {
-        return this.get(STORAGE_KEYS.PRODUCTS);
+    async getProducts() {
+        const q = collection(db, 'products');
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
     },
 
-    saveProduct(product) {
-        const products = this.getProducts();
-        if (product.id) {
-            const index = products.findIndex(p => p.id === product.id);
-            if (index !== -1) products[index] = product;
+    async saveProduct(product) {
+        if (!product.id) {
+            const newDoc = doc(collection(db, 'products'));
+            product.id = newDoc.id;
+            await setDoc(newDoc, product);
         } else {
-            product.id = 'p_' + Date.now();
-            products.push(product);
+            await setDoc(doc(db, 'products', product.id), product);
         }
-        this.set(STORAGE_KEYS.PRODUCTS, products);
         return product;
     },
 
-    deleteProduct(id) {
-        const products = this.getProducts().filter(p => p.id !== id);
-        this.set(STORAGE_KEYS.PRODUCTS, products);
+    async deleteProduct(id) {
+        await deleteDoc(doc(db, 'products', id));
     },
 
     // --- MOVEMENTS (Ledger) ---
-    getMovements() {
-        return this.get(STORAGE_KEYS.MOVEMENTS);
+    async getMovements() {
+        const q = query(collection(db, 'movements'), orderBy('date', 'desc'));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
     },
 
-    saveMovement(movement) {
-        const movements = this.getMovements();
-        movement.id = 'm_' + Date.now();
+    async saveMovement(movement) {
+        const ref = movement.id ? doc(db, 'movements', movement.id) : doc(collection(db, 'movements'));
+        movement.id = ref.id;
         movement.date = movement.date || new Date().toISOString().split('T')[0];
-        movements.unshift(movement); // Newest first
-        this.set(STORAGE_KEYS.MOVEMENTS, movements);
+        movement.timestamp = new Date().getTime();
+        await setDoc(ref, movement);
         return movement;
     },
 
-    // --- USERS & AUTH ---
-    getUsers() {
-        return this.get(STORAGE_KEYS.USERS);
+    // --- SETTINGS (Warehouses, Categories) ---
+    async getSettings() {
+        const docRef = doc(db, 'settings', 'global');
+        const snap = await getDoc(docRef);
+        return snap.exists() ? snap.data() : { warehouses: [], categories: [] };
     },
 
-    saveUser(user) {
-        const users = this.getUsers();
-        users.push(user);
-        this.set(STORAGE_KEYS.USERS, users);
+    async saveSettings(settings) {
+        await setDoc(doc(db, 'settings', 'global'), settings);
+    },
+
+    async getWarehouses() {
+        const settings = await this.getSettings();
+        return settings.warehouses || [];
+    },
+
+    async saveWarehouse(warehouse) {
+        const settings = await this.getSettings();
+        const index = settings.warehouses.findIndex(w => (typeof w === 'string' ? w : w.name) === warehouse.name);
+        if (index !== -1) {
+            settings.warehouses[index] = warehouse;
+        } else {
+            settings.warehouses.push(warehouse);
+        }
+        await this.saveSettings(settings);
+    },
+
+    async removeWarehouse(name) {
+        const settings = await this.getSettings();
+        settings.warehouses = settings.warehouses.filter(w => (typeof w === 'string' ? w : w.name) !== name);
+        await this.saveSettings(settings);
+    },
+
+    // --- SEQUENCES ---
+    async getNextSequence(warehouseCode, type) {
+        const settings = await this.getSettings();
+        if (!settings.sequences) settings.sequences = {};
+
+        const opCode = type === 'Receipt' ? 'IN' : (type === 'Delivery' ? 'OUT' : 'INT');
+        const seqKey = `${warehouseCode}/${opCode}`;
+        
+        const nextId = (settings.sequences[seqKey] || 0) + 1;
+        settings.sequences[seqKey] = nextId;
+        await this.saveSettings(settings);
+
+        const paddedId = String(nextId).padStart(3, '0');
+        return `${warehouseCode}/${opCode}/${paddedId}`;
+    },
+
+    // --- USERS ---
+    setCurrentUser(user) {
+        localStorage.setItem('ims_current_user', JSON.stringify(user));
     },
 
     getCurrentUser() {
-        const data = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+        const data = localStorage.getItem('ims_current_user');
         return data ? JSON.parse(data) : null;
     },
 
-    setCurrentUser(user) {
-        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
-    },
-
-    logout() {
-        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-    },
-
     // --- SEED DATA ---
-    seed() {
-        if (this.get(STORAGE_KEYS.SETTINGS).seeded) return;
+    async seed() {
+        const settings = await this.getSettings();
+        if (settings.seeded) return;
 
-        const defaultWarehouses = ['Main Warehouse', 'Production Floor', 'Rack A', 'Rack B'];
+        const defaultWarehouses = [
+            { name: 'Main Warehouse', code: 'MAIN', address: '123 Logistics Way, City' },
+            { name: 'Production Floor', code: 'PROD', address: 'Level 1, Factory Block B' },
+            { name: 'Rack A', code: 'R-A', address: 'Aisle 1, Section 5' },
+            { name: 'Rack B', code: 'R-B', address: 'Aisle 2, Section 3' }
+        ];
         const defaultCategories = ['Raw Material', 'Consumables', 'Finished Goods'];
 
-        this.set(STORAGE_KEYS.SETTINGS, { 
+        await this.saveSettings({ 
             seeded: true, 
             warehouses: defaultWarehouses, 
             categories: defaultCategories 
         });
-
-        // Optional: Add a demo product if completely empty
-        if (this.getProducts().length === 0) {
-            // No, user wants clean slate. We'll just seed settings.
-        }
     }
 };
 
-// Auto-seed on load
-Storage.seed();
+// Listen for auth state to auto-seed if first time
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        Storage.seed();
+    }
+});
 
 export default Storage;
