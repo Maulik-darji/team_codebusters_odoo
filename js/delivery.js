@@ -295,6 +295,6 @@ const Delivery = {
 
 };
 
-Delivery.init();
+// Delivery.init();
 window.Delivery = Delivery;
 export default Delivery;

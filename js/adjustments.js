@@ -130,5 +130,5 @@ const Adjustments = {
 
 };
 
-Adjustments.init();
+// Adjustments.init();
 export default Adjustments;

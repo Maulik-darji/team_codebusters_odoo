@@ -1,7 +1,7 @@
 const functions = require("firebase-functions");
 
-const GEMINI_API_KEY = "AIzaSyB8HywYzk0rDAFn5jTu3xb-1q1GY5nLQ-c";
 const MODEL = "gemini-1.5-flash"; 
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY; 
 
 exports.askAI = functions.https.onRequest(async (req, res) => {
     // Robust Manual CORS

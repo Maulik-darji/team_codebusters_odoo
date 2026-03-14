@@ -284,6 +284,6 @@ const Receipts = {
     }
 };
 
-Receipts.init();
+// Receipts.init();
 window.Receipts = Receipts;
 export default Receipts;

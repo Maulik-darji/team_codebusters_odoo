@@ -10,6 +10,8 @@ const App = {
         this.renderLayout();
         this.updateNavbarUser();
         this.highlightActiveMenu();
+        this.initRouter(); // SPA Router init
+        
         // Global Lucide Icons init
         if (window.lucide) window.lucide.createIcons();
 
@@ -137,6 +139,17 @@ const App = {
             </div>
         `;
 
+        // Mobile sidebar auto-close listener (added once)
+        sidebar.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth < 1024) {
+                    if (sidebar.classList.contains('active')) {
+                        this.toggleSidebar();
+                    }
+                }
+            });
+        });
+
         navbar.innerHTML = `
             <div class="flex-between w-100" style="width: 100%; gap: 1rem;">
                 <div class="flex items-center gap-3">
@@ -196,29 +209,120 @@ const App = {
     },
 
     highlightActiveMenu() {
-        const path = window.location.pathname;
+        const path = window.location.pathname.split('/').pop() || 'index.html';
         const links = document.querySelectorAll('.nav-link');
+        
         links.forEach(link => {
+            link.classList.remove('active');
             const href = link.getAttribute('href');
-            if (href && path.includes(href)) {
+            if (href && (href === path || (path === 'index.html' && href === 'index.html'))) {
                 link.classList.add('active');
             }
-            
-            // Auto-close sidebar on mobile after clicking a link
-            link.addEventListener('click', () => {
-                if (window.innerWidth < 1024) {
-                    const sidebar = document.getElementById('sidebar');
-                    if (sidebar && sidebar.classList.contains('active')) {
-                        this.toggleSidebar();
-                    }
-                }
-            });
         });
     },
 
     logout() {
         Storage.logout();
         window.location.href = 'login.html';
+    },
+
+    initRouter() {
+        // Intercept all link clicks
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('a');
+            if (!link) return;
+            
+            const href = link.getAttribute('href');
+            if (!href || href.startsWith('#') || href.startsWith('http') || href.includes(':')) return;
+            
+            // Don't intercept if it's not an internal HTML page
+            if (href === '#' || href === 'javascript:void(0)') return;
+
+            e.preventDefault();
+            this.navigateTo(href);
+        });
+
+        // Handle browser back/forward buttons
+        window.addEventListener('popstate', () => {
+            this.navigateTo(window.location.pathname, false);
+        });
+        
+        // Initial page JS load
+        this.initPageModule(window.location.pathname);
+    },
+
+    async navigateTo(url, updateHistory = true) {
+        if (!url) return;
+        
+        // Show loading state if needed
+        const contentArea = document.getElementById('content');
+        if (!contentArea) return;
+        
+        // Add fading effect
+        contentArea.style.opacity = '0.5';
+        contentArea.style.transition = 'opacity 0.2s';
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to load page');
+            
+            const html = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            // Extract the content and title
+            const newContent = doc.querySelector('#content');
+            const newTitle = doc.querySelector('title')?.innerText;
+            const newScripts = doc.querySelectorAll('script[type="module"]');
+
+            if (newContent) {
+                contentArea.innerHTML = newContent.innerHTML;
+                if (newTitle) document.title = newTitle;
+                if (updateHistory) history.pushState(null, '', url);
+                
+                this.highlightActiveMenu();
+                this.initPageModule(url);
+                if (window.lucide) lucide.createIcons();
+                
+                // Scroll to top
+                window.scrollTo(0, 0);
+            }
+        } catch (err) {
+            console.error('Navigation error:', err);
+            // Fallback to traditional redirect if SPA fails
+            if (updateHistory) window.location.href = url;
+        } finally {
+            contentArea.style.opacity = '1';
+        }
+    },
+
+    async initPageModule(path) {
+        const filename = path.split('/').pop() || 'index.html';
+        const moduleMap = {
+            'index.html': 'dashboard.js',
+            'products.html': 'products.js',
+            'receipts.html': 'receipts.js',
+            'delivery.html': 'delivery.js',
+            'transfers.html': 'transfers.js',
+            'adjustments.html': 'adjustments.js',
+            'history.html': 'history.js',
+            'profile.html': 'profile.js',
+            'settings.html': 'settings.js'
+        };
+
+        const moduleName = moduleMap[filename];
+        if (moduleName) {
+            try {
+                // Remove existing specific scripts if any to avoid re-running top-level code?
+                // Actually, dynamic import is better
+                const module = await import(`./${moduleName}?t=${Date.now()}`);
+                if (module.default && typeof module.default.init === 'function') {
+                    module.default.init();
+                }
+            } catch (err) {
+                console.warn(`Could not re-init module ${moduleName}:`, err);
+            }
+        }
     },
 
     initSearch() {

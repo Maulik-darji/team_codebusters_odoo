@@ -188,5 +188,5 @@ const Products = {
     }
 };
 
-Products.init();
+// Products.init();
 export default Products;

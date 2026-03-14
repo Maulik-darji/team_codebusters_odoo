@@ -126,6 +126,6 @@ const Dashboard = {
     }
 };
 
-Dashboard.init();
+// Dashboard.init();
 window.Dashboard = Dashboard;
 export default Dashboard;

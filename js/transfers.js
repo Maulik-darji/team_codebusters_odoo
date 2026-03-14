@@ -162,5 +162,5 @@ const Transfers = {
     }
 };
 
-Transfers.init();
+// Transfers.init();
 export default Transfers;

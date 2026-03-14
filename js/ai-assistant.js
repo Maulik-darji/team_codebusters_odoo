@@ -346,7 +346,9 @@ const AIAssistant = {
             const scrubKeys = (text) => {
                 if (!text) return text;
                 // Matches typical Gemini API key pattern
-                return text.replace(/AIzaSy[A-Za-z0-9_-]{33}/g, '[REDACTED_API_KEY]');
+                // Matches various Gemini/Google API key patterns
+                return text.replace(/AIzaSy[A-Za-z0-9_-]{33}/g, '[REDACTED_API_KEY]')
+                           .replace(/AIzaSy[A-Za-z0-9_-]{30,40}/g, '[REDACTED_API_KEY]');
             };
 
             // Clear any old system prompts and scrub keys from all messages

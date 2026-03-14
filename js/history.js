@@ -249,6 +249,6 @@ const History = {
     }
 };
 
-History.init();
+// History.init();
 window.History = History;
 export default History;

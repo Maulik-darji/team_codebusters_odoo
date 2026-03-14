@@ -34,8 +34,9 @@ const Profile = {
         Storage.setCurrentUser(user);
         
         // In a real app, we'd update Firestore/Auth too
-        alert("Profile updated locally! (Full Firebase update would happen here)");
-        window.location.reload();
+        alert("Profile updated locally!");
+        this.populateProfile();
+        if (window.App) window.App.updateNavbarUser();
     },
 
     async handlePasswordChange(e) {
@@ -65,5 +66,5 @@ const Profile = {
     }
 };
 
-Profile.init();
+// Profile.init();
 export default Profile;
