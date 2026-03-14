@@ -4,7 +4,7 @@ const AIAssistant = {
     messages: [],
     currentModel: 'gemini-2.5-flash',
     // Global API Key provided by site owner
-    defaultApiKey: 'AIzaSyDjS5IX5OiPpUeU7Tl8InrQpET8v6SmZck', 
+    defaultApiKey: 'AIzaSyDW91Q0Kt5V4KY2LEZgj4oGE3AcDJk_-XQ', 
 
     getApiUrl() {
         // Use user-provided key if exists, otherwise fallback to site-wide default
@@ -128,6 +128,21 @@ const AIAssistant = {
             };
         }
 
+        // API Key Visibility Toggle
+        const toggleBtn = document.getElementById('ai-toggle-api-visibility');
+        const apiInput = document.getElementById('ai-api-key-input');
+        if (toggleBtn && apiInput) {
+            toggleBtn.onclick = (e) => {
+                e.stopPropagation();
+                const isPassword = apiInput.type === 'password';
+                apiInput.type = isPassword ? 'text' : 'password';
+                toggleBtn.innerHTML = isPassword ? 
+                    '<i data-lucide="eye-off" style="width: 16px; height: 16px;"></i>' : 
+                    '<i data-lucide="eye" style="width: 16px; height: 16px;"></i>';
+                lucide.createIcons();
+            };
+        }
+
         // Load existing history
         this.loadHistory();
 
@@ -135,8 +150,25 @@ const AIAssistant = {
         if (this.messages.length === 0) {
             this.messages.push({
                 role: "user",
-                parts: [{ text: `You are StockPilot AI, a professional inventory manager.
-                Your job is to help users manage products, receipts, deliveries, and transfers.
+                parts: [{ text: `You are StockPilot AI, a professional and highly efficient inventory manager for the "StockPilot" warehouse systems.
+                
+                YOUR CAPABILITIES:
+                1. Manage Products: Add new items with details (Name, SKU, Category, Stock, Location).
+                2. Receipts (Incoming): Record incoming shipments from partners.
+                3. Deliveries (Outgoing): Record outgoing shipments to partners.
+                4. Transfers (Internal): Move stock between different locations.
+                5. Adjustments: Manually correct stock levels.
+                6. History: View past stock movements.
+                
+                WEBSITE CONTEXT:
+                - Predefined Categories: Apparel, Electronics, Home Goods, Furniture, Food & Beverage, Automotive, Health & Beauty, Tools, Toys, Office Supplies.
+                - Common Locations: Warehouse A, Warehouse B, Rack 1, Rack 2, Cold Storage, Loading Dock.
+                
+                YOUR PERSONALITY:
+                - You are professional, helpful, and concise.
+                - You always confirm actions once they are completed successfully.
+                - If information is missing (like a SKU or Location for a new product), ask for it politely.
+                - You have access to real-time tools to execute these inventory actions.
                 
                 CRITICAL RULES:
                 1. If a user asks to perform an action (like adding a product or creating a receipt) but misses REQUIRED information (like SKU, Quantity, or Location), DO NOT guess. Instead, politely ask the user to provide the missing details.
@@ -144,6 +176,7 @@ const AIAssistant = {
                 3. For Receipts/Deliveries: Product Name, Quantity, and Location are MANDATORY.
                 4. If you aren't sure which product the user means, ask for clarification.
                 5. Always use the tools to execute actions when you have all the information.
+                6. The standard reference format for movements is <WarehouseCode>/<Operation>/<ID> (e.g., MAIN/IN/001, MAIN/OUT/002). Use this format when discussing reference IDs.
                 
                 Current context: User is logged in as ${Storage.getCurrentUser()?.loginId || 'Guest'}.`}]
             });
@@ -253,13 +286,65 @@ const AIAssistant = {
         chatMessages.scrollTop = chatMessages.scrollHeight;
 
         try {
+            // ALWAYS ensure the system prompt is at the top of the history
+            const systemPrompt = `You are StockPilot AI, an intelligent inventory assistant for the "StockPilot" warehouse management system.
+                
+                YOUR CAPABILITIES:
+                1. CREATE Products (name, SKU, category, stock, location).
+                2. UPDATE Products (edit any field of an existing product).
+                3. DELETE Products (with user confirmation).
+                4. LIST / SEARCH Products and movements.
+                5. CREATE Receipts (incoming shipments from suppliers).
+                6. CREATE Deliveries (outgoing shipments to customers).
+                7. CREATE Transfers (internal stock moves between locations).
+                8. CREATE Adjustments (correct stock quantities).
+                9. VALIDATE movements (mark as Done, updates stock).
+                10. REJECT receipts (mark as Rejected).
+                11. ADVANCE delivery stage (Ready → Picking → Packing → Done).
+                12. UPDATE existing movements (change supplier, qty, location).
+                13. Get inventory status, recent history, warehouses, and categories.
+                
+                WEBSITE CONTEXT - USE THESE EXACT OPTIONS:
+                - Categories: Apparel, Electronics, Home Goods, Furniture, Food & Beverage, Automotive, Health & Beauty, Tools, Toys, Office Supplies.
+                - Locations: Warehouse A, Warehouse B, Rack 1, Rack 2, Cold Storage, Loading Dock, Main Warehouse, Production Floor.
+                
+                STRICT RULES (follow these without exception):
+                1. NEVER assume or guess missing information. If required info is missing, ASK the user for it first.
+                2. For create_product: name, SKU, category, location, AND starting stock quantity are ALL required. If the user has not mentioned the stock amount, ALWAYS ASK "What is the starting stock quantity for [product name]?" before creating. ONLY accept 0 if the user explicitly says "0" or "zero" or "no stock".
+                3. For create_receipt / create_delivery: product_name, qty (number), and location are ALL required. Ask for any that are missing. If no partner/supplier name given, ask for it.
+                4. For create_transfer: product_name, qty, source location, and destination location are ALL required.
+                5. If a user says something vague like "add shoes", ask: "What is the SKU, category, location, and starting stock for Shoes?"
+                6. If the user asks what categories/locations are available, always list them from the context above.
+                7. Always confirm what you did after completing an action.`;
+
+            // Scrub any API keys from history to prevent "leaked key" blocks
+            const scrubKeys = (text) => {
+                if (!text) return text;
+                // Matches typical Gemini API key pattern
+                return text.replace(/AIzaSy[A-Za-z0-9_-]{33}/g, '[REDACTED_API_KEY]');
+            };
+
+            // Clear any old system prompts and scrub keys from all messages
+            const filteredMessages = this.messages
+                .filter(m => !m.parts[0].text.includes("You are StockPilot AI"))
+                .map(m => ({
+                    ...m,
+                    parts: m.parts.map(p => ({ ...p, text: scrubKeys(p.text) }))
+                }));
+            
+            const payload = [
+                { role: "user", parts: [{ text: scrubKeys(systemPrompt) }] },
+                { role: "model", parts: [{ text: "Understood. I am StockPilot AI, ready to manage your inventory." }] },
+                ...filteredMessages
+            ];
+
             const response = await fetch(this.getApiUrl(), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    contents: this.messages,
+                    contents: payload,
                     generationConfig: {
-                        temperature: 0.3,
+                        temperature: 0.1, // Lower temperature for more consistent behavior
                         maxOutputTokens: 1000
                     },
                     tools: [{
@@ -348,6 +433,116 @@ const AIAssistant = {
                                         limit: { type: "number" }
                                     }
                                 }
+                            },
+                            {
+                                name: "delete_product",
+                                description: "Permanently delete a product from the inventory. Always confirm with the user before deleting.",
+                                parameters: {
+                                    type: "object",
+                                    properties: {
+                                        product_name: { type: "string", description: "Name or partial name of the product to delete" }
+                                    },
+                                    required: ["product_name"]
+                                }
+                            },
+                            {
+                                name: "update_product",
+                                description: "Update an existing product's details (name, SKU, category, location, stock).",
+                                parameters: {
+                                    type: "object",
+                                    properties: {
+                                        product_name: { type: "string", description: "Name of the product to find" },
+                                        new_name: { type: "string" },
+                                        new_sku: { type: "string" },
+                                        new_category: { type: "string" },
+                                        new_location: { type: "string" },
+                                        new_stock: { type: "number" }
+                                    },
+                                    required: ["product_name"]
+                                }
+                            },
+                            {
+                                name: "validate_movement",
+                                description: "Validate (approve/process) a pending receipt, delivery, or transfer order by its reference ID or product name.",
+                                parameters: {
+                                    type: "object",
+                                    properties: {
+                                        movement_ref: { type: "string", description: "The reference ID or product name of the movement to validate" },
+                                        type: { type: "string", description: "Type: Receipt, Delivery, or Transfer" }
+                                    },
+                                    required: ["movement_ref"]
+                                }
+                            },
+                            {
+                                name: "get_products",
+                                description: "List all products in inventory, optionally filtered by category or location.",
+                                parameters: {
+                                    type: "object",
+                                    properties: {
+                                        category: { type: "string" },
+                                        location: { type: "string" }
+                                    }
+                                }
+                            },
+                            {
+                                name: "search_inventory",
+                                description: "Search products and movements by keyword.",
+                                parameters: {
+                                    type: "object",
+                                    properties: {
+                                        term: { type: "string", description: "Search keyword (product name, SKU, reference, partner)" }
+                                    },
+                                    required: ["term"]
+                                }
+                            },
+                            {
+                                name: "get_warehouses",
+                                description: "List all available warehouse locations configured in the system.",
+                                parameters: { type: "object", properties: {} }
+                            },
+                            {
+                                name: "get_categories",
+                                description: "List all product categories configured in the system.",
+                                parameters: { type: "object", properties: {} }
+                            },
+                            {
+                                name: "update_movement",
+                                description: "Update an existing receipt, delivery, or transfer. Can change supplier/partner, quantity, location, or notes. Find by product name, reference ID, or type.",
+                                parameters: {
+                                    type: "object",
+                                    properties: {
+                                        movement_ref: { type: "string", description: "Product name, reference ID, or keyword to find the movement" },
+                                        type: { type: "string", description: "Optional: filter by type (Receipt, Delivery, Transfer, Adjustment)" },
+                                        new_partner: { type: "string", description: "New supplier or customer name" },
+                                        new_qty: { type: "number", description: "Updated quantity" },
+                                        new_location: { type: "string", description: "Updated location" },
+                                        new_notes: { type: "string", description: "Additional notes" }
+                                    },
+                                    required: ["movement_ref"]
+                                }
+                            },
+                            {
+                                name: "reject_movement",
+                                description: "Reject a pending receipt or movement. Marks it as Rejected and no stock change occurs.",
+                                parameters: {
+                                    type: "object",
+                                    properties: {
+                                        movement_ref: { type: "string", description: "Product name or reference ID of the movement to reject" }
+                                    },
+                                    required: ["movement_ref"]
+                                }
+                            },
+                            {
+                                name: "advance_delivery_stage",
+                                description: "Advance a delivery order through its stages: Ready → Picking → Packing → Done (validated).",
+                                parameters: {
+                                    type: "object",
+                                    properties: {
+                                        movement_ref: { type: "string", description: "Product name or reference ID of the delivery" },
+                                        target_stage: { type: "string", description: "Optional target stage: Picking, Packing, or Done" }
+                                    },
+                                    required: ["movement_ref"]
+                                }
                             }
                         ]
                     }]
@@ -429,55 +624,82 @@ const AIAssistant = {
             } else if (name === 'create_receipt') {
                 if (!product) throw new Error(`Product "${args.product_name}" not found.`);
                 this.logProgress(`Creating receipt for ${product.name}...`);
+                const warehouses = await Storage.getWarehouses();
+                const wh = warehouses.find(w => (typeof w === 'string' ? w : w.name).toLowerCase() === (args.location || '').toLowerCase());
+                const whCode = (wh && wh.code) ? wh.code : ((args.location || 'WH').substring(0,4).toUpperCase());
+                const seq = await Storage.getNextSequence(whCode, 'Receipt');
                 await Storage.saveMovement({
+                    id: seq,
                     type: 'Receipt',
                     productId: product.id,
                     productName: product.name,
-                    qty: Number(args.qty),
+                    quantity: Number(args.qty),
                     location: args.location,
                     partner: args.partner || 'Unknown Supplier',
                     status: 'Ready'
                 });
-                resultMsg = `✅ Created receipt for ${args.qty} units of **${product.name}** at ${args.location}.`;
+                resultMsg = `✅ Created receipt ${seq} for ${args.qty} units of **${product.name}** at ${args.location}. Partner: ${args.partner || 'Unknown Supplier'}.`;
             } else if (name === 'create_delivery') {
                 if (!product) throw new Error(`Product "${args.product_name}" not found.`);
                 this.logProgress(`Creating delivery order for ${product.name}...`);
+                const warehouses = await Storage.getWarehouses();
+                const wh = warehouses.find(w => (typeof w === 'string' ? w : w.name).toLowerCase() === (args.location || '').toLowerCase());
+                const whCode = (wh && wh.code) ? wh.code : ((args.location || 'WH').substring(0,4).toUpperCase());
+                const seq = await Storage.getNextSequence(whCode, 'Delivery');
+                // Reserve stock
+                product.reserved = (Number(product.reserved) || 0) + Number(args.qty);
+                await Storage.saveProduct(product);
                 await Storage.saveMovement({
+                    id: seq,
                     type: 'Delivery',
                     productId: product.id,
                     productName: product.name,
-                    qty: Number(args.qty),
+                    quantity: Number(args.qty),
                     location: args.location,
                     partner: args.partner || 'Customer',
                     status: 'Ready'
                 });
-                resultMsg = `✅ Created delivery order for ${args.qty} units of **${product.name}** from ${args.location}.`;
+                resultMsg = `✅ Created delivery order ${seq} for ${args.qty} units of **${product.name}** from ${args.location}. Customer: ${args.partner || 'Customer'}.`;
             } else if (name === 'create_transfer') {
                 if (!product) throw new Error(`Product "${args.product_name}" not found.`);
                 this.logProgress(`Moving stock from ${args.source} to ${args.dest}...`);
+                const warehouses = await Storage.getWarehouses();
+                const wh = warehouses.find(w => (typeof w === 'string' ? w : w.name).toLowerCase() === (args.source || '').toLowerCase());
+                const whCode = (wh && wh.code) ? wh.code : ((args.source || 'WH').substring(0,4).toUpperCase());
+                const seq = await Storage.getNextSequence(whCode, 'Transfer');
                 await Storage.saveMovement({
+                    id: seq,
                     type: 'Transfer',
                     productId: product.id,
                     productName: product.name,
-                    qty: Number(args.qty),
-                    sourceLocation: args.source,
+                    quantity: Number(args.qty),
+                    source: args.source,
                     location: args.dest,
                     status: 'Ready'
                 });
-                resultMsg = `✅ Created transfer for ${args.qty} units of **${product.name}** from ${args.source} to ${args.dest}.`;
+                resultMsg = `✅ Created transfer ${seq} for ${args.qty} units of **${product.name}** from ${args.source} to ${args.dest}.`;
             } else if (name === 'create_adjustment') {
                 if (!product) throw new Error(`Product "${args.product_name}" not found.`);
                 this.logProgress(`Adjusting stock for ${product.name}...`);
+                const prevStock = Number(product.stock);
+                const warehouses = await Storage.getWarehouses();
+                const wh = warehouses.find(w => (typeof w === 'string' ? w : w.name).toLowerCase() === (product.location || '').toLowerCase());
+                const whCode = (wh && wh.code) ? wh.code : ((product.location || 'WH').substring(0,4).toUpperCase());
+                const seq = await Storage.getNextSequence(whCode, 'Adjustment');
                 await Storage.saveMovement({
+                    id: seq,
                     type: 'Adjustment',
                     productId: product.id,
                     productName: product.name,
-                    qty: Number(args.qty),
+                    quantity: Number(args.qty),
+                    actualQty: prevStock + Number(args.qty),
+                    recordedQty: prevStock,
                     location: product.location,
+                    reason: args.reason || 'Manual Adjustment',
                     partner: args.reason || 'Manual Adjustment',
                     status: 'Done'
                 });
-                product.stock = Number(product.stock) + Number(args.qty);
+                product.stock = prevStock + Number(args.qty);
                 await Storage.saveProduct(product);
                 resultMsg = `✅ Adjusted **${product.name}** stock by ${args.qty}. New stock: ${product.stock}.`;
             } else if (name === 'get_inventory_status') {
@@ -488,8 +710,156 @@ const AIAssistant = {
                 this.logProgress(`Fetching recent movement logs...`);
                 const movements = await Storage.getMovements();
                 const slice = movements.slice(0, args.limit || 5);
-                const list = slice.map(m => `• ${m.date}: ${m.type} ${m.productName} (${m.qty > 0 ? '+' : ''}${m.qty})`).join('<br>');
+                const list = slice.map(m => {
+                    const qty = m.quantity || m.qty || 0;
+                    return `• ${m.date}: ${m.type} <strong>${m.productName}</strong> (${qty > 0 ? '+' : ''}${qty}) — ${m.status}`;
+                }).join('<br>');
                 resultMsg = `<strong>Recent Activity:</strong><br>${list}`;
+            } else if (name === 'delete_product') {
+                if (!product) throw new Error(`Product "${args.product_name}" not found in inventory.`);
+                this.logProgress(`⚠️ Preparing to delete ${product.name}...`);
+                // Show confirmation in UI before deleting
+                const confirmed = window.confirm(`Are you sure you want to permanently delete "${product.name}" from inventory? This cannot be undone.`);
+                if (!confirmed) {
+                    statusDiv.remove();
+                    resultMsg = `🚫 Deletion of **${product.name}** was cancelled.`;
+                    this.addMessageToUI('bot', resultMsg);
+                    this.messages.push({ role: "model", parts: [{ text: resultMsg }] });
+                    this.saveHistory();
+                    return;
+                }
+                this.logProgress(`Deleting ${product.name} (${product.id}) from database...`);
+                await Storage.deleteProduct(product.id);
+                resultMsg = `🗑️ Product **${product.name}** has been permanently deleted from inventory.`;
+            } else if (name === 'update_product') {
+                if (!product) throw new Error(`Product "${args.product_name}" not found.`);
+                this.logProgress(`Updating ${product.name}...`);
+                if (args.new_name) product.name = args.new_name;
+                if (args.new_sku) product.sku = args.new_sku;
+                if (args.new_category) product.category = args.new_category;
+                if (args.new_location) product.location = args.new_location;
+                if (args.new_stock !== undefined) product.stock = Number(args.new_stock);
+                await Storage.saveProduct(product);
+                resultMsg = `✅ Updated product **${product.name}** successfully.`;
+            } else if (name === 'validate_movement') {
+                this.logProgress(`Looking up movement: ${args.movement_ref}...`);
+                const movements = await Storage.getMovements();
+                const mv = movements.find(m =>
+                    (m.id && m.id.toLowerCase().includes(args.movement_ref.toLowerCase())) ||
+                    (m.productName && m.productName.toLowerCase().includes(args.movement_ref.toLowerCase()))
+                );
+                if (!mv) throw new Error(`No movement found for "${args.movement_ref}".`);
+                if (mv.status === 'Done') {
+                    resultMsg = `ℹ️ The movement for **${mv.productName}** is already validated (status: Done).`;
+                } else {
+                    this.logProgress(`Validating movement for ${mv.productName}...`);
+                    mv.status = 'Done';
+                    // Update stock quantity if receipt or delivery
+                    const mvProduct = products.find(p => p.id === mv.productId || p.name === mv.productName);
+                    if (mvProduct) {
+                        const delta = mv.type === 'Receipt' ? Number(mv.qty) : (mv.type === 'Delivery' ? -Number(mv.qty) : 0);
+                        mvProduct.stock = Number(mvProduct.stock || 0) + delta;
+                        await Storage.saveProduct(mvProduct);
+                    }
+                    await Storage.saveMovement(mv);
+                    resultMsg = `✅ **${mv.type}** for **${mv.productName}** (${mv.qty} units) has been validated and marked as Done.`;
+                }
+            } else if (name === 'get_products') {
+                this.logProgress(`Fetching product list...`);
+                let list = products;
+                if (args.category) list = list.filter(p => p.category && p.category.toLowerCase().includes(args.category.toLowerCase()));
+                if (args.location) list = list.filter(p => p.location && p.location.toLowerCase().includes(args.location.toLowerCase()));
+                if (list.length === 0) {
+                    resultMsg = `No products found${args.category ? ` in category "${args.category}"` : ''}${args.location ? ` at "${args.location}"` : ''}.`;
+                } else {
+                    const rows = list.map(p => `• **${p.name}** (${p.sku}) — Stock: ${p.stock || 0} — Location: ${p.location || 'N/A'}`).join('<br>');
+                    resultMsg = `<strong>Products (${list.length}):</strong><br>${rows}`;
+                }
+            } else if (name === 'search_inventory') {
+                this.logProgress(`Searching for "${args.term}"...`);
+                const results = await Storage.searchAll(args.term);
+                let msg = '';
+                if (results.products.length > 0) {
+                    const pRows = results.products.map(p => `• **${p.name}** (${p.sku}) — Stock: ${p.stock || 0}`).join('<br>');
+                    msg += `<strong>Products:</strong><br>${pRows}<br>`;
+                }
+                if (results.movements.length > 0) {
+                    const mRows = results.movements.map(m => `• ${m.date}: ${m.type} **${m.productName}** (${m.qty}) — ${m.status}`).join('<br>');
+                    msg += `<strong>Movements:</strong><br>${mRows}`;
+                }
+                resultMsg = msg || `No results found for "${args.term}".`;
+            } else if (name === 'get_warehouses') {
+                this.logProgress(`Fetching warehouse list...`);
+                const warehouses = await Storage.getWarehouses();
+                const wList = warehouses.map(w => `• ${typeof w === 'string' ? w : w.name + (w.code ? ` (${w.code})` : '')}`).join('<br>');
+                resultMsg = `<strong>Configured Warehouses & Locations:</strong><br>${wList}`;
+            } else if (name === 'get_categories') {
+                this.logProgress(`Fetching categories...`);
+                const settings = await Storage.getSettings();
+                const cats = settings.categories || [];
+                resultMsg = `<strong>Product Categories:</strong><br>${cats.map(c => `• ${c}`).join('<br>')}`;
+            } else if (name === 'update_movement') {
+                this.logProgress(`Searching for movement: "${args.movement_ref}"...`);
+                const movements = await Storage.getMovements();
+                // Find the most recent matching movement
+                const matches = movements.filter(m =>
+                    (m.productName && m.productName.toLowerCase().includes(args.movement_ref.toLowerCase())) ||
+                    (m.id && m.id.toLowerCase().includes(args.movement_ref.toLowerCase()))
+                );
+                // Optional type filter
+                const filtered = args.type ? matches.filter(m => m.type && m.type.toLowerCase() === args.type.toLowerCase()) : matches;
+                if (filtered.length === 0) throw new Error(`No movement found for "${args.movement_ref}"${args.type ? ` of type ${args.type}` : ''}.`);
+                const mv = filtered[0]; // Most recent
+                this.logProgress(`Updating ${mv.type} for ${mv.productName}...`);
+                if (args.new_partner) mv.partner = args.new_partner;
+                if (args.new_qty !== undefined) mv.qty = Number(args.new_qty);
+                if (args.new_location) mv.location = args.new_location;
+                if (args.new_notes) mv.notes = args.new_notes;
+                await Storage.saveMovement(mv);
+                resultMsg = `✅ Updated **${mv.type}** for **${mv.productName}**. New details — Partner: ${mv.partner || 'N/A'}, Qty: ${mv.qty}, Location: ${mv.location}.`;
+            } else if (name === 'reject_movement') {
+                this.logProgress(`Searching for movement to reject: "${args.movement_ref}"...`);
+                const movements = await Storage.getMovements();
+                const mv = movements.find(m =>
+                    (m.productName && m.productName.toLowerCase().includes(args.movement_ref.toLowerCase())) ||
+                    (m.id && m.id.toLowerCase().includes(args.movement_ref.toLowerCase()))
+                );
+                if (!mv) throw new Error(`No movement found for "${args.movement_ref}".`);
+                if (mv.status === 'Done') throw new Error(`Cannot reject a movement that is already validated (Done).`);
+                if (mv.status === 'Rejected') {
+                    resultMsg = `ℹ️ The movement for **${mv.productName}** is already Rejected.`;
+                } else {
+                    this.logProgress(`Rejecting ${mv.type} for ${mv.productName}...`);
+                    mv.status = 'Rejected';
+                    await Storage.saveMovement(mv);
+                    resultMsg = `❌ **${mv.type}** for **${mv.productName}** has been rejected.`;
+                }
+            } else if (name === 'advance_delivery_stage') {
+                this.logProgress(`Looking up delivery: "${args.movement_ref}"...`);
+                const movements = await Storage.getMovements();
+                const mv = movements.find(m =>
+                    m.type === 'Delivery' &&
+                    ((m.productName && m.productName.toLowerCase().includes(args.movement_ref.toLowerCase())) ||
+                    (m.id && m.id.toLowerCase().includes(args.movement_ref.toLowerCase())))
+                );
+                if (!mv) throw new Error(`No delivery found for "${args.movement_ref}".`);
+                const stageMap = { 'Ready': 'Picking', 'Picking': 'Packing', 'Packing': 'Done' };
+                const nextStage = args.target_stage || stageMap[mv.status];
+                if (!nextStage) throw new Error(`Delivery is already in final stage: ${mv.status}.`);
+                if (nextStage === 'Done') {
+                    // Full validation — reduce stock, release reservation
+                    const mvProduct = products.find(p => p.id === mv.productId || p.name === mv.productName);
+                    if (mvProduct) {
+                        const qty = Number(mv.quantity || mv.qty || 0);
+                        mvProduct.stock = Number(mvProduct.stock) - qty;
+                        mvProduct.reserved = Math.max(0, (Number(mvProduct.reserved) || 0) - qty);
+                        await Storage.saveProduct(mvProduct);
+                    }
+                } 
+                this.logProgress(`Advancing delivery to ${nextStage}...`);
+                mv.status = nextStage;
+                await Storage.saveMovement(mv);
+                resultMsg = `✅ Delivery for **${mv.productName}** advanced to **${nextStage}**.`;
             }
 
             statusDiv.remove();

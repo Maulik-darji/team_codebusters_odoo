@@ -12,6 +12,9 @@ const Receipts = {
         window.validateReceipt = (id) => this.validate(id);
         window.rejectReceipt = (id) => this.reject(id);
 
+        const savedView = localStorage.getItem('stockpilot_receipts_view');
+        if (savedView) this.currentView = savedView;
+
         try {
             await this.renderList();
             await this.populateDropdowns();
@@ -50,74 +53,167 @@ const Receipts = {
         }
     },
 
+    currentView: 'list',
+
+    setView(view) {
+        this.currentView = view;
+        localStorage.setItem('stockpilot_receipts_view', view);
+        document.getElementById('view-list-btn').style.background = view === 'list' ? 'var(--primary)' : 'transparent';
+        document.getElementById('view-list-btn').style.color = view === 'list' ? 'white' : 'inherit';
+        document.getElementById('view-kanban-btn').style.background = view === 'kanban' ? 'var(--primary)' : 'transparent';
+        document.getElementById('view-kanban-btn').style.color = view === 'kanban' ? 'white' : 'inherit';
+        this.renderList();
+    },
+
     async renderList() {
-        const list = document.getElementById('receipt-list');
+        const container = document.getElementById('view-container');
         const allMovements = await Storage.getMovements();
         const movements = allMovements.filter(m => m.type === 'Receipt');
         
-        if (!list) return;
+        if (!container) return;
 
-        list.innerHTML = movements.length ? '' : '<tr><td colspan="7" style="text-align:center; padding: 2rem;">No receipts found.</td></tr>';
-
-        movements.forEach(m => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td style="font-family: monospace; font-weight: 600;">${m.id}</td>
-                <td>${m.partner || 'Internal'}</td>
-                <td>${m.productName}</td>
-                <td>+${m.quantity}</td>
-                <td>${m.date}</td>
-                <td><span class="badge ${m.status === 'Done' ? 'badge-success' : (m.status === 'Rejected' ? 'badge-danger' : 'badge-warning')}">${m.status}</span></td>
-                <td>
-                    <div style="display: flex; gap: 4px;">
-                        ${m.status === 'Ready' ? `
-                            <button class="btn btn-primary btn-sm" onclick="validateReceipt('${m.id}')">Validate</button>
-                            <button class="btn btn-light btn-sm" style="color: var(--danger)" onclick="rejectReceipt('${m.id}')">Reject</button>
-                        ` : ''}
-                    </div>
-                </td>
+        if (this.currentView === 'list') {
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ref</th>
+                            <th>Supplier</th>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
             `;
-            list.appendChild(row);
-        });
+            if (movements.length === 0) {
+                html += '<tr><td colspan="7" style="text-align:center; padding: 2rem;">No receipts found.</td></tr>';
+            } else {
+                movements.forEach(m => {
+                    const statusBadge = `<span class="badge ${m.status === 'Done' ? 'badge-success' : (m.status === 'Rejected' ? 'badge-danger' : 'badge-warning')}">${m.status}</span>`;
+                    const actions = `
+                        <div style="display: flex; gap: 4px;">
+                            ${m.status === 'Ready' ? `
+                                <button class="btn btn-primary btn-sm" onclick="validateReceipt('${m.id}')">Validate</button>
+                                <button class="btn btn-light btn-sm" style="color: var(--danger)" onclick="rejectReceipt('${m.id}')">Reject</button>
+                            ` : ''}
+                            <button class="btn btn-light btn-sm" onclick="Receipts.deleteRecord('${m.id}')" style="color: var(--danger); padding: 4px 8px;" title="Delete">
+                                <i data-lucide="trash-2" style="width: 14px;"></i>
+                            </button>
+                        </div>
+                    `;
+                    html += `
+                        <tr>
+                            <td style="font-family: monospace; font-weight: 600;">${m.id}</td>
+                            <td>${m.partner || 'Internal'}</td>
+                            <td>${m.productName}</td>
+                            <td>+${m.quantity}</td>
+                            <td>${m.date}</td>
+                            <td>${statusBadge}</td>
+                            <td>${actions}</td>
+                        </tr>
+                    `;
+                });
+            }
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        } else {
+            // Kanban View
+            let html = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; padding: 1rem 0;">`;
+            if (movements.length === 0) {
+                html += '<div style="grid-column: 1/-1; text-align:center; padding: 2rem; color: var(--text-muted);">No receipts found.</div>';
+            } else {
+                // Group by status
+                const statuses = ['Ready', 'Done', 'Rejected'];
+                const grouped = {};
+                statuses.forEach(s => grouped[s] = movements.filter(m => m.status === s));
+
+                statuses.forEach(status => {
+                    if (grouped[status].length === 0) return;
+                    html += `<div style="background: var(--bg-color, #f9fafb); border-radius: 12px; padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+                        <h3 style="font-size: 1rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                            ${status} 
+                            <span class="badge ${status === 'Done' ? 'badge-success' : (status === 'Rejected' ? 'badge-danger' : 'badge-warning')}">${grouped[status].length}</span>
+                        </h3>
+                    `;
+                    grouped[status].forEach(m => {
+                        html += `
+                            <div class="card" style="padding: 1rem; margin-bottom: 0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border-color);">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+                                    <span style="font-family: monospace; font-size:0.8rem; font-weight:600; color:var(--text-muted);">${m.id}</span>
+                                    <span style="font-size:0.8rem; color:var(--text-muted);">${m.date}</span>
+                                </div>
+                                <h4 style="margin: 0 0 0.5rem 0;">${m.productName}</h4>
+                                <div style="display:flex; justify-content:space-between; margin-bottom: 1rem; font-size:0.9rem;">
+                                    <span><strong>Qty:</strong> +${m.quantity}</span>
+                                    <span><strong>From:</strong> ${m.partner || 'Internal'}</span>
+                                </div>
+                                <div style="display: flex; gap: 4px; border-top: 1px solid var(--border-color); padding-top: 0.8rem;">
+                                    ${m.status === 'Ready' ? `
+                                        <button class="btn btn-primary btn-sm" onclick="validateReceipt('${m.id}')" style="flex:1;">Validate</button>
+                                        <button class="btn btn-light btn-sm" style="color: var(--danger); flex:1;" onclick="rejectReceipt('${m.id}')">Reject</button>
+                                    ` : ''}
+                                    <button class="btn btn-light btn-sm" onclick="Receipts.deleteRecord('${m.id}')" style="color: var(--danger); padding: 4px 8px;" title="Delete">
+                                        <i data-lucide="trash-2" style="width: 14px;"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += `</div>`;
+                });
+            }
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        if (window.lucide) lucide.createIcons();
     },
 
     async handleSubmit(e) {
         e.preventDefault();
-        const productId = document.getElementById('r-product').value;
-        const products = await Storage.getProducts();
-        const product = products.find(p => p.id === productId);
-        const warehouseName = document.getElementById('r-warehouse').value;
-        
-        // Find warehouse code
-        const warehouses = await Storage.getWarehouses();
-        const warehouse = warehouses.find(w => (typeof w === 'string' ? w : w.name) === warehouseName);
-        const warehouseCode = (warehouse && warehouse.code) || 'WH';
-
-        const movement = {
-            id: await Storage.getNextSequence(warehouseCode, 'Receipt'),
-            type: 'Receipt',
-            partner: document.getElementById('r-supplier').value,
-            productId: productId,
-            productName: product.name,
-            quantity: Number(document.getElementById('r-qty').value),
-            location: warehouseName,
-            status: 'Ready'
-        };
-
         const submitBtn = e.target.querySelector('button[type="submit"]');
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Validating...';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Validating...';
+        }
 
         try {
+            const productId = document.getElementById('r-product').value;
+            const products = await Storage.getProducts();
+            const product = products.find(p => p.id === productId);
+            if (!product) throw new Error("Please select a valid product.");
+
+            const warehouseName = document.getElementById('r-warehouse').value;
+            const warehouses = await Storage.getWarehouses();
+            const warehouse = warehouses.find(w => (typeof w === 'string' ? w : w.name) === warehouseName);
+            const warehouseCode = (warehouse && warehouse.code) || 'WH';
+
+            const movement = {
+                id: await Storage.getNextSequence(warehouseCode, 'Receipt'),
+                type: 'Receipt',
+                partner: document.getElementById('r-supplier').value,
+                productId: productId,
+                productName: product.name,
+                quantity: Number(document.getElementById('r-qty').value),
+                location: warehouseName,
+                status: 'Ready'
+            };
+
             await Storage.saveMovement(movement);
             window.closeModal();
             await this.renderList();
             e.target.reset();
         } catch (err) {
+            console.error("Manual receipt creation error:", err);
             alert("Receipt failed: " + err.message);
         } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Validate Receipt';
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Create Draft';
+            }
         }
     },
 
@@ -157,8 +253,19 @@ const Receipts = {
                 }
             }
         );
+    },
+
+    async deleteRecord(id) {
+        if (!confirm('Are you sure you want to permanently delete this receipt record?')) return;
+        try {
+            await Storage.deleteMovement(id);
+            await this.renderList();
+        } catch (err) {
+            alert('Failed to delete: ' + err.message);
+        }
     }
 };
 
 Receipts.init();
+window.Receipts = Receipts;
 export default Receipts;

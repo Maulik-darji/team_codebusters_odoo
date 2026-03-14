@@ -80,20 +80,52 @@ const Dashboard = {
         list.innerHTML = movements.length ? '' : '<tr><td colspan="8" style="text-align:center; padding: 1.5rem;">No recent movements.</td></tr>';
 
         movements.forEach(m => {
+            const qty = m.quantity !== undefined ? m.quantity : (m.qty !== undefined ? m.qty : '—');
+            const qtyDisplay = typeof qty === 'number' ? (qty > 0 ? `+${qty}` : qty) : qty;
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${m.date}</td>
                 <td style="font-family: monospace; font-size: 0.75rem;">${m.id}</td>
                 <td><strong style="font-size: 0.75rem;">${m.type}</strong></td>
                 <td>${m.productName}</td>
-                <td style="font-weight: 700;">${m.quantity > 0 ? '+' : ''}${m.quantity}</td>
-                <td>${m.location || m.source}</td>
+                <td style="font-weight: 700;">${qtyDisplay}</td>
+                <td>${m.location || m.source || '—'}</td>
                 <td><span class="badge ${m.status === 'Done' ? 'badge-success' : (m.status === 'Rejected' ? 'badge-danger' : 'badge-warning')}">${m.status}</span></td>
+                <td>
+                    <button class="btn btn-light btn-sm" onclick="Dashboard.deleteRecord('${m.id}')" style="color: var(--danger); padding: 3px 6px;" title="Delete">
+                        <i data-lucide="trash-2" style="width:13px; height:13px;"></i>
+                    </button>
+                </td>
             `;
             list.appendChild(row);
         });
+        if (window.lucide) lucide.createIcons();
+    },
+
+    async deleteRecord(id) {
+        if (!confirm('Delete this movement record?')) return;
+        try {
+            await Storage.deleteMovement(id);
+            await this.renderLedger();
+            await this.renderStats();
+        } catch (err) {
+            alert('Failed to delete: ' + err.message);
+        }
+    },
+
+    async deleteAll() {
+        if (!confirm('Delete ALL movement records shown? This cannot be undone.')) return;
+        try {
+            const movements = await Storage.getMovements();
+            await Promise.all(movements.map(m => Storage.deleteMovement(m.id)));
+            await this.renderLedger();
+            await this.renderStats();
+        } catch (err) {
+            alert('Failed to delete all: ' + err.message);
+        }
     }
 };
 
 Dashboard.init();
+window.Dashboard = Dashboard;
 export default Dashboard;

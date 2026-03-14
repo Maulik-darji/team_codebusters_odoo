@@ -77,42 +77,51 @@ const Adjustments = {
 
     async handleSubmit(e) {
         e.preventDefault();
-        const productId = document.getElementById('a-product').value;
-        const recorded = Number(document.getElementById('a-recorded').value);
-        const actual = Number(document.getElementById('a-actual').value);
-        const diff = actual - recorded;
-
-        const products = await Storage.getProducts();
-        const product = products.find(p => p.id === productId);
-        
-        if (product) {
-            const submitBtn = e.target.querySelector('button[type="submit"]');
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        if (submitBtn) {
             submitBtn.disabled = true;
             submitBtn.textContent = 'Saving...';
+        }
 
-            try {
-                const movement = {
-                    type: 'Adjustment',
-                    productId: productId,
-                    productName: product.name,
-                    quantity: diff,
-                    recordedQty: recorded,
-                    actualQty: actual,
-                    reason: document.getElementById('a-reason').value,
-                    location: product.warehouse || 'Unknown',
-                    status: 'Done'
-                };
+        try {
+            const productId = document.getElementById('a-product').value;
+            const recorded = Number(document.getElementById('a-recorded').value);
+            const actual = Number(document.getElementById('a-actual').value);
+            const diff = actual - recorded;
 
-                // Update physical stock immediately
-                product.stock = actual;
-                await Storage.saveProduct(product);
-                await Storage.saveMovement(movement);
-                
-                window.closeModal();
-                await this.renderList();
-            } catch (err) {
-                alert("Adjustment failed: " + err.message);
-            } finally {
+            const products = await Storage.getProducts();
+            const product = products.find(p => p.id === productId);
+            if (!product) throw new Error("Please select a valid product.");
+
+            const warehouses = await Storage.getWarehouses();
+            const wh = warehouses.find(w => (typeof w === 'string' ? w : w.name).toLowerCase() === (product.location || '').toLowerCase());
+            const whCode = (wh && wh.code) ? wh.code : ((product.location || 'WH').substring(0,4).toUpperCase());
+
+            const movement = {
+                id: await Storage.getNextSequence(whCode, 'Adjustment'),
+                type: 'Adjustment',
+                productId: productId,
+                productName: product.name,
+                quantity: diff,
+                recordedQty: recorded,
+                actualQty: actual,
+                reason: document.getElementById('a-reason').value,
+                location: product.location || 'Unknown',
+                status: 'Done'
+            };
+
+            // Update physical stock immediately
+            product.stock = actual;
+            await Storage.saveProduct(product);
+            await Storage.saveMovement(movement);
+            
+            window.closeModal();
+            await this.renderList();
+        } catch (err) {
+            console.error("Manual adjustment error:", err);
+            alert("Adjustment failed: " + err.message);
+        } finally {
+            if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Apply Adjustment';
             }

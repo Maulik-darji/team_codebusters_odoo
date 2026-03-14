@@ -82,55 +82,69 @@ const Transfers = {
 
     async handleSubmit(e) {
         e.preventDefault();
-        const productId = document.getElementById('t-product').value;
-        const qty = Number(document.getElementById('t-qty').value);
-        const sourceName = document.getElementById('t-source').value;
-        const destName = document.getElementById('t-dest').value;
-
-        if (sourceName === destName) {
-            alert("Source and destination cannot be the same!");
-            return;
-        }
-
-        const products = await Storage.getProducts();
-        const product = products.find(p => p.id === productId);
-
-        // Simple validation (can be more complex by per-location stock)
-        if (Number(product.stock) < qty) {
-            document.getElementById('stock-error').classList.remove('hidden');
-            return;
-        }
-
-        // Find warehouse code (from source)
-        const warehouses = await Storage.getWarehouses();
-        const warehouse = warehouses.find(w => (typeof w === 'string' ? w : w.name) === sourceName);
-        const warehouseCode = (warehouse && warehouse.code) || 'WH';
-
-        const movement = {
-            id: await Storage.getNextSequence(warehouseCode, 'Transfer'),
-            type: 'Transfer',
-            productId: productId,
-            productName: product.name,
-            quantity: qty,
-            source: sourceName,
-            location: destName, // "location" is destination for transfers
-            status: 'Ready'
-        };
-
         const submitBtn = e.target.querySelector('button[type="submit"]');
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Saving...';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+        }
 
         try {
+            const productId = document.getElementById('t-product').value;
+            const qty = Number(document.getElementById('t-qty').value);
+            const sourceName = document.getElementById('t-source').value;
+            const destName = document.getElementById('t-dest').value;
+
+            if (sourceName === destName) {
+                alert("Source and destination cannot be the same!");
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Create Transfer';
+                }
+                return;
+            }
+
+            const products = await Storage.getProducts();
+            const product = products.find(p => p.id === productId);
+            if (!product) throw new Error("Please select a valid product.");
+
+            // Simple validation (can be more complex by per-location stock)
+            if (Number(product.stock) < qty) {
+                document.getElementById('stock-error').classList.remove('hidden');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Create Transfer';
+                }
+                return;
+            }
+
+            // Find warehouse code (from source)
+            const warehouses = await Storage.getWarehouses();
+            const warehouse = warehouses.find(w => (typeof w === 'string' ? w : w.name) === sourceName);
+            const warehouseCode = (warehouse && warehouse.code) || 'WH';
+
+            const movement = {
+                id: await Storage.getNextSequence(warehouseCode, 'Transfer'),
+                type: 'Transfer',
+                productId: productId,
+                productName: product.name,
+                quantity: qty,
+                source: sourceName,
+                location: destName, // "location" is destination for transfers
+                status: 'Ready'
+            };
+
             await Storage.saveMovement(movement);
             window.closeModal();
             await this.renderList();
             e.target.reset();
         } catch (err) {
+            console.error("Manual transfer error:", err);
             alert("Transfer failed: " + err.message);
         } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Create Transfer';
+            if (submitBtn && submitBtn.textContent === 'Saving...') {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Create Transfer';
+            }
         }
     },
 

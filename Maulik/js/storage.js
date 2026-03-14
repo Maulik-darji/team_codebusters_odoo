@@ -125,6 +125,14 @@ const Storage = {
         return movement;
     },
 
+    async deleteMovement(id) {
+        try {
+            await deleteDoc(doc(db, 'movements', id));
+        } catch (err) {
+            console.error("Firestore deleteMovement error:", err);
+            throw err;
+        }
+    },
 
     // --- SETTINGS (Warehouses, Categories) ---
     async getSettings() {
@@ -187,8 +195,8 @@ const Storage = {
             const settings = await this.getSettings();
             if (!settings.sequences) settings.sequences = {};
 
-            const opCode = type === 'Receipt' ? 'IN' : (type === 'Delivery' ? 'OUT' : 'INT');
-            const seqKey = `${warehouseCode}-${opCode}`;
+            const opCode = type === 'Receipt' ? 'IN' : (type === 'Delivery' ? 'OUT' : (type === 'Adjustment' ? 'ADJ' : 'INT'));
+            const seqKey = `${warehouseCode}/${opCode}`;
             
             const nextId = (settings.sequences[seqKey] || 0) + 1;
             settings.sequences[seqKey] = nextId;

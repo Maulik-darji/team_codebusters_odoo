@@ -35,23 +35,81 @@ const App = {
         window.currentTheme = savedTheme;
     },
 
-    toggleTheme() {
-        const newTheme = window.currentTheme === 'light' ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-        window.currentTheme = newTheme;
-        
-        // Update toggle icon
-        const icon = document.querySelector('#theme-toggle i');
-        if (icon && window.lucide) {
-            // Replace the whole element to trigger lucide
-            const newIcon = document.createElement('i');
-            newIcon.setAttribute('data-lucide', newTheme === 'light' ? 'moon' : 'sun');
-            newIcon.style.width = '18px';
-            newIcon.style.color = 'var(--text-main)';
-            icon.parentNode.replaceChild(newIcon, icon);
-            window.lucide.createIcons();
+    toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+            sidebar.classList.toggle('active');
+            
+            // Toggle backdrop if it exists
+            let backdrop = document.getElementById('sidebar-backdrop');
+            if (sidebar.classList.contains('active')) {
+                if (!backdrop) {
+                    backdrop = document.createElement('div');
+                    backdrop.id = 'sidebar-backdrop';
+                    backdrop.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 998; backdrop-filter: blur(2px); transition: opacity 0.3s;';
+                    backdrop.onclick = () => this.toggleSidebar();
+                    document.body.appendChild(backdrop);
+                }
+                backdrop.style.display = 'block';
+                document.body.style.overflow = 'hidden';
+            } else {
+                if (backdrop) backdrop.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
         }
+    },
+
+    async toggleTheme() {
+        const newTheme = window.currentTheme === 'light' ? 'dark' : 'light';
+        
+        const updateTheme = () => {
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            window.currentTheme = newTheme;
+            
+            // Update toggle icon
+            const icon = document.querySelector('#theme-toggle i');
+            if (icon && window.lucide) {
+                const newIcon = document.createElement('i');
+                newIcon.setAttribute('data-lucide', newTheme === 'light' ? 'moon' : 'sun');
+                newIcon.style.width = '18px';
+                newIcon.style.color = 'var(--text-main)';
+                icon.parentNode.replaceChild(newIcon, icon);
+                window.lucide.createIcons();
+            }
+        };
+
+        if (!document.startViewTransition) {
+            updateTheme();
+            return;
+        }
+
+        // Circular reveal animation logic
+        // Since event is no longer passed, the animation will always start from the center/top-center
+        const x = window.innerWidth / 2;
+        const y = 0;
+        const endRadius = Math.hypot(
+            Math.max(x, window.innerWidth - x),
+            Math.max(y, window.innerHeight - y)
+        );
+
+        const transition = document.startViewTransition(() => updateTheme());
+
+        await transition.ready;
+
+        document.documentElement.animate(
+            {
+                clipPath: [
+                    `circle(0px at ${x}px ${y}px)`,
+                    `circle(${endRadius}px at ${x}px ${y}px)`,
+                ],
+            },
+            {
+                duration: 400,
+                easing: 'ease-in-out',
+                pseudoElement: '::view-transition-new(root)',
+            }
+        );
     },
 
     // Injects Sidebar and Navbar into the page
@@ -104,11 +162,16 @@ const App = {
         `;
 
         navbar.innerHTML = `
-            <div class="flex-between w-100" style="width: 100%">
-                <div class="search-wrapper" style="position: relative; width: 330px;">
-                    <i data-lucide="search" style="position: absolute; left: 10px; top: 8px; width: 16px; color: #999"></i>
-                    <input type="text" id="global-search" placeholder="Search products, SKU, refs..." style="padding-left: 2.5rem; height: 32px; width: 100%;">
-                    <div id="search-results" class="hidden" style="position: absolute; top: 40px; left: 0; width: 450px; background: white; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid var(--border-color); z-index: 10000; padding: 1rem; max-height: 500px; overflow-y: auto;">
+            <div class="flex-between w-100" style="width: 100%; gap: 1rem;">
+                <div class="flex items-center gap-3">
+                    <button id="mobile-menu-trigger" class="btn btn-light" style="display: none; width: 36px; height: 36px; padding: 0; border: none; background: transparent;" onclick="window.App.toggleSidebar()">
+                        <i data-lucide="menu" style="width: 24px; color: var(--text-main);"></i>
+                    </button>
+                    <div class="search-wrapper" style="position: relative; width: 330px;">
+                        <i data-lucide="search" style="position: absolute; left: 10px; top: 8px; width: 16px; color: #999"></i>
+                        <input type="text" id="global-search" placeholder="Search products, SKU, refs..." style="padding-left: 2.5rem; height: 32px; width: 100%;">
+                        <div id="search-results" class="hidden" style="position: absolute; top: 40px; left: 0; width: 450px; background: white; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid var(--border-color); z-index: 10000; padding: 1rem; max-height: 500px; overflow-y: auto;">
+                        </div>
                     </div>
                 </div>
                 <div class="flex items-center gap-4" style="display: flex; align-items: center; gap: 15px;">
@@ -125,7 +188,7 @@ const App = {
                     </div>
                     <button id="ai-trigger" class="btn btn-primary btn-sm" style="display: flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #6366f1, #a855f7); border: none; padding: 0.5rem 1rem; border-radius: 20px;">
                         <i data-lucide="sparkles" style="width: 16px;"></i>
-                        AI Assistant
+                        <span class="hidden-mobile">AI Assistant</span>
                     </button>
                     <div class="user-profile flex items-center gap-2" style="display: flex; align-items:center; gap: 10px; cursor: pointer; padding-left: 10px; border-left: 1px solid var(--border-color);" onclick="window.location.href='profile.html'">
                         <div id="nav-initials" style="width: 32px; height: 32px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem;">
@@ -164,6 +227,16 @@ const App = {
             if (href && path.includes(href)) {
                 link.classList.add('active');
             }
+            
+            // Auto-close sidebar on mobile after clicking a link
+            link.addEventListener('click', () => {
+                if (window.innerWidth < 1024) {
+                    const sidebar = document.getElementById('sidebar');
+                    if (sidebar && sidebar.classList.contains('active')) {
+                        this.toggleSidebar();
+                    }
+                }
+            });
         });
     },
 
@@ -417,63 +490,94 @@ const App = {
             const aiHtml = `
                 <div id="ai-sidebar" class="ai-sidebar hidden">
                     <div id="ai-resizer" class="ai-resizer"></div>
+                    
                     <div class="ai-header">
                         <div class="flex-between w-full">
                             <div class="flex items-center gap-2" style="display: flex; align-items: center; gap: 8px;">
-                                <i data-lucide="sparkles" style="color: #a855f7;"></i>
-                                <h3 class="font-bold text-lg">StockPilot AI</h3>
-                            </div>
-                            <div class="flex items-center gap-3" style="display: flex; align-items: center; gap: 12px;">
-                                <button id="ai-settings-btn" title="AI Settings" style="background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; border-radius: 6px;" onmouseover="this.style.background='var(--bg-body)'" onmouseout="this.style.background='none'"><i data-lucide="settings" style="width: 18px; height: 18px;"></i></button>
-                                <button id="ai-history-btn" title="View History" style="background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; border-radius: 6px;" onmouseover="this.style.background='var(--bg-body)'" onmouseout="this.style.background='none'"><i data-lucide="history" style="width: 18px; height: 18px;"></i></button>
-                                <button id="ai-close" title="Close" style="background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; border-radius: 6px;" onmouseover="this.style.background='var(--bg-body)'" onmouseout="this.style.background='none'"><i data-lucide="x" style="width: 18px; height: 18px;"></i></button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- History Panel -->
-                    <div id="ai-history-panel" class="ai-panel hidden">
-                        <div class="p-3 border-b flex-between items-center bg-white sticky top-0" style="display: flex; justify-content: space-between; align-items: center;">
-                            <h4 class="font-bold text-sm">Chat History</h4>
-                            <button id="ai-clear-history" class="text-xs text-red-500 hover:underline">Clear All</button>
-                        </div>
-                        <div id="ai-history-list" class="ai-history-list"></div>
-                    </div>
-
-                    <!-- Settings Panel -->
-                    <div id="ai-settings-panel" class="ai-panel hidden">
-                        <div class="p-4 border-b flex-between" style="display: flex; justify-content: space-between; align-items: center;">
-                            <h4 class="font-bold">AI Settings</h4>
-                            <button id="ai-settings-close" class="text-xs text-gray-500 hover:underline">Close</button>
-                        </div>
-                        <div class="p-4 flex flex-col gap-4" style="display: flex; flex-direction: column; gap: 16px;">
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-500 mb-1">Gemini API Key (Optional Override)</label>
-                                <div class="flex gap-2" style="display: flex; gap: 8px;">
-                                    <input type="password" id="ai-api-key-input" placeholder="Paste your key here..." class="flex-1 text-sm p-2 border rounded outline-none" style="border-color: #e2e8f0; width: 100%;">
-                                    <button id="ai-save-api-key" class="bg-indigo-600 text-white text-xs px-3 py-2 rounded font-semibold hover:bg-indigo-700 transition">Save</button>
+                                <div style="background: var(--primary-light); color: var(--primary); width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                    <i data-lucide="sparkles" style="width: 18px; height: 18px;"></i>
                                 </div>
-                                <p class="text-[10px] text-gray-400 mt-2">By default, the site's global key is used. Use this to use your own key.</p>
+                                <div>
+                                    <h3 class="font-bold text-sm" style="margin: 0;">StockPilot AI</h3>
+                                    <span style="font-size: 10px; color: var(--text-muted); display: block;">Your Inventory Assistant</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2" style="display: flex; align-items: center; gap: 4px;">
+                                <button id="ai-history-btn" class="ai-header-btn" title="Chat History"><i data-lucide="history" style="width: 18px; height: 18px;"></i></button>
+                                <button id="ai-settings-btn" class="ai-header-btn" title="AI Settings"><i data-lucide="settings" style="width: 18px; height: 18px;"></i></button>
+                                <button id="ai-close" class="ai-header-btn" title="Close"><i data-lucide="x" style="width: 18px; height: 18px;"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- History Panel (Overlays chat) -->
+                    <div id="ai-history-panel" class="ai-panel hidden">
+                        <div class="ai-panel-header">
+                            <span class="ai-panel-title">Chat History</span>
+                            <button id="ai-clear-history" style="background: none; border: none; color: var(--danger); font-size: 0.75rem; font-weight: 600; cursor: pointer; padding: 4px 8px; border-radius: 4px;" onmouseover="this.style.background='var(--primary-light)'" onmouseout="this.style.background='none'">Clear All</button>
+                        </div>
+                        <div class="ai-panel-content">
+                            <div id="ai-history-list" class="ai-history-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Settings Panel (Overlays chat) -->
+                    <div id="ai-settings-panel" class="ai-panel hidden">
+                        <div class="ai-panel-header">
+                            <span class="ai-panel-title">AI Settings</span>
+                            <button id="ai-settings-close" style="background: none; border: none; color: var(--text-muted); cursor: pointer;"><i data-lucide="x" style="width: 16px; height: 16px;"></i></button>
+                        </div>
+                        <div class="ai-panel-content" style="padding: 1.25rem;">
+                            <div style="margin-bottom: 1.5rem;">
+                                <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Gemini API Key</label>
+                                <div style="display: flex; gap: 8px;">
+                                    <div style="position: relative; flex: 1; display: flex; align-items: center;">
+                                        <input type="password" id="ai-api-key-input" placeholder="Enter API Key..." style="width: 100%; padding: 0.65rem; padding-right: 2.5rem; border-radius: 8px; border: 1px solid var(--border-color); font-size: 0.85rem;">
+                                        <button id="ai-toggle-api-visibility" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px;">
+                                            <i data-lucide="eye" style="width: 16px; height: 16px;"></i>
+                                        </button>
+                                    </div>
+                                    <button id="ai-save-api-key" style="background: var(--primary); color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer;">Save</button>
+                                </div>
+                                <p style="font-size: 11px; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.4;">Current: <span style="font-family: monospace; opacity: 0.7;">Using shared site key</span></p>
+                            </div>
+                            <div style="padding: 0.75rem; background: var(--primary-light); border-radius: 8px; display: flex; gap: 10px; align-items: flex-start;">
+                                <i data-lucide="info" style="width: 16px; height: 16px; color: var(--primary); margin-top: 2px;"></i>
+                                <p style="font-size: 11px; color: var(--primary); margin: 0; line-height: 1.4;">Custom API keys are stored locally in your browser and are never shared or leaked.</p>
                             </div>
                         </div>
                     </div>
 
                     <div id="ai-chat-messages" class="ai-messages">
-                        <div class="ai-msg bot">Hello! I'm your StockPilot AI. How can I help you manage your inventory today?</div>
+                        <div class="ai-msg bot">
+                            <strong>Hello!</strong> 👋 I'm your StockPilot assistant. How can I help you manage your inventory today?
+                        </div>
+                    </div>
+
+                    <!-- Typing Indicator -->
+                    <div id="ai-typing" style="display: none; padding: 0.5rem 1.5rem; align-items: flex-start; gap: 8px;">
+                        <div style="display: flex; gap: 4px; padding: 8px 12px; background: white; border: 1px solid var(--border-color); border-radius: 12px; border-bottom-left-radius: 4px;">
+                            <div class="typing-dot" style="width: 4px; height: 4px; background: var(--text-muted); border-radius: 50%; animation: typingBounce 0.6s infinite alternate;"></div>
+                            <div class="typing-dot" style="width: 4px; height: 4px; background: var(--text-muted); border-radius: 50%; animation: typingBounce 0.6s infinite alternate 0.2s;"></div>
+                            <div class="typing-dot" style="width: 4px; height: 4px; background: var(--text-muted); border-radius: 50%; animation: typingBounce 0.6s infinite alternate 0.4s;"></div>
+                        </div>
                     </div>
 
                     <div class="ai-input-area">
                         <div class="ai-input-container">
-                            <div class="flex-between items-center w-full mb-1">
-                                <select id="ai-model-select" style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 12px; font-size: 0.8rem; color: #64748b; width: fit-content; outline: none;">
+                            <div style="padding: 0 8px 4px 8px; border-bottom: 1px solid rgba(0,0,0,0.05); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                                <i data-lucide="brain" style="width: 12px; color: var(--text-muted);"></i>
+                                <select id="ai-model-select" style="background: none; border: none; font-size: 10px; font-weight: 600; color: var(--text-muted); cursor: pointer; padding: 0; outline: none;">
                                     <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                                     <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
                                     <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
                                 </select>
                             </div>
                             <div class="ai-input-row">
-                                <textarea id="ai-input" placeholder="Ask AI to do something..." rows="1"></textarea>
-                                <button id="ai-send"><i data-lucide="send" style="width: 18px;"></i></button>
+                                <textarea id="ai-input" placeholder="Ask anything about your inventory..." rows="1"></textarea>
+                                <button id="ai-send" title="Send Message">
+                                    <i data-lucide="arrow-up" style="width: 20px; height: 20px;"></i>
+                                </button>
                             </div>
                         </div>
                     </div>

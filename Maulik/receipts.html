@@ -18,10 +18,22 @@
                         <h1 style="font-size: 1.5rem; font-weight: 700;">Incoming Receipts</h1>
                         <p class="text-muted">Receive goods from suppliers and increase stock</p>
                     </div>
-                    <button class="btn btn-primary" onclick="window.openModal()">+ New Receipt</button>
+                    <div style="display:flex; gap: 10px; align-items:center;">
+                        <div style="display:flex; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; overflow:hidden;">
+                            <button id="view-list-btn" onclick="Receipts.setView('list')" title="List View"
+                                style="padding: 8px 12px; background: var(--primary); color: white; border:none; cursor:pointer; display:flex; align-items:center; gap:4px; font-size:0.85rem;">
+                                <i data-lucide="list" style="width:15px; height:15px;"></i>
+                            </button>
+                            <button id="view-kanban-btn" onclick="Receipts.setView('kanban')" title="Kanban View"
+                                style="padding: 8px 12px; background: transparent; border:none; cursor:pointer; display:flex; align-items:center; gap:4px; font-size:0.85rem;">
+                                <i data-lucide="layout-grid" style="width:15px; height:15px;"></i>
+                            </button>
+                        </div>
+                        <button class="btn btn-primary" onclick="window.openModal()">+ New Receipt</button>
+                    </div>
                 </div>
 
-                <div class="table-responsive">
+                <div class="table-responsive" id="view-container">
                     <table>
                         <thead>
                             <tr>
