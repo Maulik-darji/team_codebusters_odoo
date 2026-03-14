@@ -9,6 +9,16 @@ import Storage from './storage.js';
 
 const Auth = {
     init() {
+        // Immediate redirect if session exists (Fastest)
+        const currentUser = Storage.getCurrentUser();
+        const path = window.location.pathname;
+        const isAuthPage = path.includes('login.html') || path.includes('signup.html');
+        
+        if (currentUser && isAuthPage) {
+            window.location.replace('index.html');
+            return;
+        }
+
         const loginForm = document.getElementById('login-form');
         const signupForm = document.getElementById('signup-form');
         const skipBtn = document.getElementById('skip-btn');
@@ -50,10 +60,13 @@ const Auth = {
                 
                 // If already logged in and on an auth page, redirect to landing
                 if (isAuthPage) {
-                    window.location.href = 'index.html';
+                    window.location.replace('index.html');
                 }
             } else if (!isGuest && !isAuthPage) {
-                window.location.href = 'login.html';
+                window.location.replace('login.html');
+            } else if (isAuthPage) {
+                // Only show body if we are on an auth page and definitely NOT logged in
+                document.body.style.opacity = '1';
             }
         });
     },
