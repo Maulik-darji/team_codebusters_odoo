@@ -13,6 +13,8 @@ const Delivery = {
             document.getElementById('stock-error').classList.add('hidden');
         };
         window.validateDelivery = (id) => this.validate(id);
+        window.nextStage = (id, stage) => this.updateStage(id, stage);
+
 
         try {
             await this.renderList();
@@ -62,10 +64,13 @@ const Delivery = {
                 <td>${m.productName}</td>
                 <td>-${m.quantity}</td>
                 <td>${m.date}</td>
-                <td><span class="badge ${m.status === 'Done' ? 'badge-success' : 'badge-warning'}">${m.status}</span></td>
+                <td><span class="badge ${m.status === 'Done' ? 'badge-success' : (['Picking', 'Packing'].includes(m.status) ? 'badge-info' : 'badge-warning')}">${m.status}</span></td>
                 <td>
-                    ${m.status === 'Ready' ? `<button class="btn btn-primary btn-sm" onclick="validateDelivery('${m.id}')">Validate</button>` : ''}
+                    ${m.status === 'Ready' ? `<button class="btn btn-secondary btn-sm" onclick="nextStage('${m.id}', 'Picking')">Pick</button>` : ''}
+                    ${m.status === 'Picking' ? `<button class="btn btn-secondary btn-sm" onclick="nextStage('${m.id}', 'Packing')">Pack</button>` : ''}
+                    ${m.status === 'Packing' ? `<button class="btn btn-primary btn-sm" onclick="validateDelivery('${m.id}')">Validate</button>` : ''}
                 </td>
+
             `;
             list.appendChild(row);
         });
@@ -101,35 +106,60 @@ const Delivery = {
             status: 'Ready'
         };
 
-        await Storage.saveMovement(movement);
-        window.closeModal();
-        await this.renderList();
-        e.target.reset();
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Reserving...';
+
+        try {
+            await Storage.saveMovement(movement);
+            // --- RESERVATION LOGIC ---
+            product.reserved = (Number(product.reserved) || 0) + qty;
+            await Storage.saveProduct(product);
+
+            window.closeModal();
+            await this.renderList();
+            e.target.reset();
+        } catch (err) {
+            alert("Delivery failed: " + err.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Reserve Items';
+        }
+    },
+
+
+    async updateStage(id, stage) {
+        const movements = await Storage.getMovements();
+        const m = movements.find(move => move.id === id);
+        if (m) {
+            m.status = stage;
+            await Storage.saveMovement(m);
+            await this.renderList();
+        }
     },
 
     async validate(id) {
         const movements = await Storage.getMovements();
-        const index = movements.findIndex(m => m.id === id);
+        const m = movements.find(move => move.id === id);
         
-        if (index !== -1) {
-            const m = movements[index];
-            
-            // Re-check stock just in case
+        if (m && m.status !== 'Done') {
             const products = await Storage.getProducts();
-            const pIndex = products.findIndex(p => p.id === m.productId);
+            const p = products.find(prod => prod.id === m.productId);
             
-            if (pIndex !== -1 && Number(products[pIndex].stock) >= m.quantity) {
-                products[pIndex].stock = Number(products[pIndex].stock) - m.quantity;
-                await Storage.saveProduct(products[pIndex]);
+            if (p) {
+                // Finalize: reduce physical stock and release reservation
+                const qty = Number(m.quantity);
+                p.stock = Number(p.stock) - qty;
+                p.reserved = Math.max(0, (Number(p.reserved) || 0) - qty);
                 
+                await Storage.saveProduct(p);
                 m.status = 'Done';
                 await Storage.saveMovement(m);
                 await this.renderList();
-            } else {
-                alert("Insufficient stock available to validate this delivery!");
             }
         }
     }
+
 };
 
 Delivery.init();

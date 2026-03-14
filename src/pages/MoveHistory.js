@@ -8,13 +8,28 @@ const MoveHistory = () => {
   const { movements } = useInventory();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
 
   const filteredMovements = movements.filter(m => {
     const matchesSearch = m.productName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           m.reference.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'All' || m.type === filterType;
-    return matchesSearch && matchesType;
+    
+    const moveDate = new Date(m.date);
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+    
+    // Set hours to 0 for accurate date comparison
+    if (start) start.setHours(0, 0, 0, 0);
+    if (end) end.setHours(23, 59, 59, 999);
+    
+    const matchesDate = (!start || moveDate >= start) && (!end || moveDate <= end);
+    
+    return matchesSearch && matchesType && matchesDate;
   });
+
 
   const columns = [
     { header: 'Date', accessor: 'date' },
@@ -40,9 +55,27 @@ const MoveHistory = () => {
           <h1 className="page-title">Stock Move History</h1>
           <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem' }}>Ledger of all inventory movements</p>
         </div>
-        <div className="flex gap-4">
-          <select value={filterType} onChange={e => setFilterType(e.target.value)} style={{ width: '180px' }}>
-            <option value="All">All Operations</option>
+        <div className="flex gap-4 items-center">
+          <div className="flex items-center gap-2">
+            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>From:</label>
+            <input 
+              type="date" 
+              value={startDate} 
+              onChange={e => setStartDate(e.target.value)} 
+              style={{ width: '150px' }}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>To:</label>
+            <input 
+              type="date" 
+              value={endDate} 
+              onChange={e => setEndDate(e.target.value)} 
+              style={{ width: '150px' }}
+            />
+          </div>
+          <select value={filterType} onChange={e => setFilterType(e.target.value)} style={{ width: '150px' }}>
+            <option value="All">All types</option>
             <option value="Receipt">Receipts</option>
             <option value="Delivery">Deliveries</option>
             <option value="Internal Transfer">Internal Transfers</option>
@@ -52,13 +85,14 @@ const MoveHistory = () => {
             <Search size={18} style={{ position: 'absolute', top: '10px', left: '10px', color: 'var(--text-muted)' }} />
             <input 
               type="text" 
-              placeholder="Search history..." 
+              placeholder="Search..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ paddingLeft: '2.5rem', width: '250px' }}
+              style={{ paddingLeft: '2.5rem', width: '200px' }}
             />
           </div>
         </div>
+
       </div>
 
       <Table columns={columns} data={filteredMovements} />

@@ -80,27 +80,39 @@ const Adjustments = {
         const product = products.find(p => p.id === productId);
         
         if (product) {
-            const movement = {
-                type: 'Adjustment',
-                productId: productId,
-                productName: product.name,
-                quantity: diff,
-                recordedQty: recorded,
-                actualQty: actual,
-                reason: document.getElementById('a-reason').value,
-                location: product.warehouse || 'Unknown',
-                status: 'Done'
-            };
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
 
-            // Update physical stock immediately
-            product.stock = actual;
-            await Storage.saveProduct(product);
-            await Storage.saveMovement(movement);
-            
-            window.closeModal();
-            await this.renderList();
+            try {
+                const movement = {
+                    type: 'Adjustment',
+                    productId: productId,
+                    productName: product.name,
+                    quantity: diff,
+                    recordedQty: recorded,
+                    actualQty: actual,
+                    reason: document.getElementById('a-reason').value,
+                    location: product.warehouse || 'Unknown',
+                    status: 'Done'
+                };
+
+                // Update physical stock immediately
+                product.stock = actual;
+                await Storage.saveProduct(product);
+                await Storage.saveMovement(movement);
+                
+                window.closeModal();
+                await this.renderList();
+            } catch (err) {
+                alert("Adjustment failed: " + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Apply Adjustment';
+            }
         }
     }
+
 };
 
 Adjustments.init();

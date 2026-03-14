@@ -3,17 +3,30 @@ import { useInventory } from '../context/InventoryContext';
 import Table from '../components/Table';
 import StatusBadge from '../components/StatusBadge';
 import Modal from '../components/Modal';
-import { Plus } from 'lucide-react';
+import { Plus, Play, Package, CheckCircle, AlertCircle } from 'lucide-react';
+
 const Delivery = () => {
-  const { movements, products, warehouses, processDelivery } = useInventory();
+  const { movements, products, warehouses, processDelivery, updateMovementStatus, validateDelivery } = useInventory();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [formData, setFormData] = useState({
     customer: '',
-    productId: products[0]?.id || '',
+    productId: '',
     quantity: 1,
-    warehouse: warehouses[0] || ''
+    warehouse: ''
   });
+
+  // Sync initial product/warehouse when they load
+  React.useEffect(() => {
+    if (!formData.productId && products.length > 0) {
+      setFormData(prev => ({ ...prev, productId: products[0].id }));
+    }
+    if (!formData.warehouse && warehouses.length > 0) {
+      setFormData(prev => ({ ...prev, warehouse: warehouses[0] }));
+    }
+  }, [products, warehouses]);
+
 
   const deliveryMovements = movements.filter(m => m.type === 'Delivery');
 
@@ -21,13 +34,29 @@ const Delivery = () => {
     e.preventDefault();
     setErrorMsg('');
     const ref = `DO-${Date.now().toString().slice(-4)} (${formData.customer})`;
-    const success = processDelivery(formData.productId, formData.quantity, formData.warehouse, ref);
+    // Start as 'Ready' instead of immediate 'Done'
+    const success = processDelivery(formData.productId, formData.quantity, formData.warehouse, ref, 'Ready');
     if (!success) {
-      setErrorMsg('Not enough stock available for this delivery.');
+      const p = products.find(p => p.id === formData.productId);
+      setErrorMsg(p ? `Insufficient stock: Only ${p.stock - (p.reserved || 0)} available.` : 'Please select a valid product.');
     } else {
+
+
       setIsModalOpen(false);
     }
   };
+
+  const handleAction = (movement, nextStatus) => {
+    if (nextStatus === 'Done') {
+      const success = validateDelivery(movement.id);
+      if (!success) {
+        alert('Could not validate delivery. Check stock levels.');
+      }
+    } else {
+      updateMovementStatus(movement.id, nextStatus);
+    }
+  };
+
 
   const columns = [
     { header: 'Reference', accessor: 'reference' },
@@ -35,8 +64,28 @@ const Delivery = () => {
     { header: 'Product', accessor: 'productName' },
     { header: 'Quantity', accessor: 'quantityChange', render: (row) => <span style={{ color: 'var(--danger)', fontWeight: 600 }}>{row.quantityChange}</span> },
     { header: 'Source Location', accessor: 'location' },
-    { header: 'Status', accessor: 'status', render: (row) => <StatusBadge status={row.status} /> }
+    { header: 'Status', accessor: 'status', render: (row) => <StatusBadge status={row.status} /> },
+    { header: 'Actions', accessor: 'actions', render: (row) => (
+      <div className="flex gap-2">
+        {row.status === 'Ready' && (
+          <button className="btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => handleAction(row, 'Picking')}>
+            <Play size={14} style={{ marginRight: '4px' }} /> Pick
+          </button>
+        )}
+        {row.status === 'Picking' && (
+          <button className="btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => handleAction(row, 'Packing')}>
+            <Package size={14} style={{ marginRight: '4px' }} /> Pack
+          </button>
+        )}
+        {row.status === 'Packing' && (
+          <button className="btn-primary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => handleAction(row, 'Done')}>
+            <CheckCircle size={14} style={{ marginRight: '4px' }} /> Validate
+          </button>
+        )}
+      </div>
+    )}
   ];
+
 
   return (
     <div className="animate-fade-in">
@@ -77,8 +126,10 @@ const Delivery = () => {
           </div>
           <div className="flex justify-between mt-4">
             <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>Cancel</button>
-            <button type="submit" className="btn-primary">Validate Delivery</button>
+            <button type="submit" className="btn-primary">Reserve Items</button>
+
           </div>
+
         </form>
       </Modal>
     </div>

@@ -11,6 +11,10 @@ const Products = {
         window.closeModal = () => document.getElementById('modal').classList.add('hidden');
         window.deleteProduct = (id) => this.delete(id);
         window.editProduct = (id) => this.edit(id);
+        window.openCategoryModal = () => document.getElementById('category-modal').classList.remove('hidden');
+        window.closeCategoryModal = () => document.getElementById('category-modal').classList.add('hidden');
+        window.deleteCategory = (name) => this.deleteCat(name);
+
 
         try {
             await this.renderList();
@@ -24,6 +28,13 @@ const Products = {
         if (form) {
             form.addEventListener('submit', (e) => this.handleSubmit(e));
         }
+
+        const catForm = document.getElementById('category-form');
+        if (catForm) {
+            catForm.addEventListener('submit', (e) => this.handleCategorySubmit(e));
+        }
+        await this.renderCategoryList();
+
     },
 
     async populateSettings() {
@@ -36,6 +47,8 @@ const Products = {
             const name = typeof w === 'string' ? w : w.name;
             return `<option value="${name}">${name}</option>`;
         }).join('');
+        await this.renderCategoryList();
+
     },
 
     async renderList() {
@@ -56,11 +69,17 @@ const Products = {
                 <td style="font-family: monospace;">${p.sku}</td>
                 <td>${p.category}</td>
                 <td>
-                    <span style="font-weight: 700;">${p.stock}</span> 
-                    <span style="font-size: 0.75rem; color: var(--text-muted)">${p.unit}</span>
-                    <span class="badge ${lowText === 'IN STOCK' ? 'badge-success' : (lowText === 'LOW STOCK' ? 'badge-warning' : 'badge-danger')}" style="margin-left: 0.5rem;">${lowText}</span>
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <div>
+                            <span style="font-weight: 700;">${p.stock}</span> 
+                            <span style="font-size: 0.75rem; color: var(--text-muted)">${p.unit}</span>
+                            <span class="badge ${lowText === 'IN STOCK' ? 'badge-success' : (lowText === 'LOW STOCK' ? 'badge-warning' : 'badge-danger')}" style="margin-left: 0.5rem;">${lowText}</span>
+                        </div>
+                        ${Number(p.reserved) > 0 ? `<div style="font-size: 0.7rem; color: var(--text-muted)">Reserved: ${p.reserved} | Avail: ${p.stock - p.reserved}</div>` : ''}
+                    </div>
                 </td>
                 <td>${p.warehouse || '-'}</td>
+
                 <td>
                     <button class="btn btn-light btn-sm" onclick="editProduct('${p.id}')"><i data-lucide="edit-2" style="width: 14px;"></i></button>
                     <button class="btn btn-light btn-sm" style="color: var(--danger)" onclick="deleteProduct('${p.id}')"><i data-lucide="trash-2" style="width: 14px;"></i></button>
@@ -91,6 +110,41 @@ const Products = {
         e.target.reset();
         if (document.getElementById('p-id')) document.getElementById('p-id').value = '';
     },
+
+    async handleCategorySubmit(e) {
+        e.preventDefault();
+        const name = document.getElementById('cat-name').value;
+        const settings = await Storage.getSettings();
+        if (!settings.categories.includes(name)) {
+            settings.categories.push(name);
+            await Storage.saveSettings(settings);
+            await this.populateSettings();
+            e.target.reset();
+        }
+    },
+
+    async renderCategoryList() {
+        const list = document.getElementById('category-list');
+        if (!list) return;
+        const settings = await Storage.getSettings();
+        list.innerHTML = settings.categories.map(c => `
+            <div class="flex-between mb-2" style="padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                <span>${c}</span>
+                <button class="btn btn-light btn-sm" style="color: var(--danger)" onclick="deleteCategory('${c}')"><i data-lucide="x" style="width: 14px;"></i></button>
+            </div>
+        `).join('');
+        if (window.lucide) window.lucide.createIcons();
+    },
+
+    async deleteCat(name) {
+        if (confirm(`Remove category "${name}"?`)) {
+            const settings = await Storage.getSettings();
+            settings.categories = settings.categories.filter(c => c !== name);
+            await Storage.saveSettings(settings);
+            await this.populateSettings();
+        }
+    },
+
 
     async delete(id) {
         if (confirm("Are you sure you want to delete this product?")) {

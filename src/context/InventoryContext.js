@@ -28,23 +28,24 @@ export const InventoryProvider = ({ children }) => {
   
   const [products, setProducts] = useState(() => {
     const saved = localStorage.getItem('products');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? JSON.parse(saved) : initialProducts;
   });
   
   const [movements, setMovements] = useState(() => {
     const saved = localStorage.getItem('movements');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? JSON.parse(saved) : initialMovements;
   });
 
   const [warehouses, setWarehouses] = useState(() => {
     const saved = localStorage.getItem('warehouses');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? JSON.parse(saved) : ['Main Warehouse', 'Secondary Store'];
   });
 
   const [categories, setCategories] = useState(() => {
     const saved = localStorage.getItem('categories');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? JSON.parse(saved) : ['Food', 'Beverage', 'Electronics'];
   });
+
 
   // Auth state listener
   useEffect(() => {
@@ -101,9 +102,10 @@ export const InventoryProvider = ({ children }) => {
       localStorage.removeItem('products');
       localStorage.removeItem('movements');
       localStorage.setItem('isCleaned_v1', 'true');
-      setProducts([]);
-      setMovements([]);
+      setProducts(initialProducts);
+      setMovements(initialMovements);
     }
+
   }, []);
 
   useEffect(() => {
@@ -235,9 +237,16 @@ export const InventoryProvider = ({ children }) => {
   };
 
   const addProduct = (product) => {
-    const newProduct = { ...product, id: Date.now().toString() };
+    const newProduct = { 
+      ...product, 
+      id: Date.now().toString(), 
+      reserved: 0,
+      stock: Number(product.stock) || 0,
+      reorderLevel: Number(product.reorderLevel) || 0
+    };
     setProducts([...products, newProduct]);
   };
+
 
   const updateProduct = (id, updatedFields) => {
     setProducts(products.map(p => p.id === id ? { ...p, ...updatedFields } : p));
@@ -256,6 +265,23 @@ export const InventoryProvider = ({ children }) => {
     setMovements([newMovement, ...movements]);
   };
 
+  const updateMovementStatus = (movementId, newStatus) => {
+    setMovements(movements.map(m => {
+      if (m.id === movementId) {
+        // If transitioning to Done, ensure stock is reduced if it hasn't been already
+        // This is a bit tricky since processDelivery currently does it immediately.
+        // For the new workflow, we'll separate stock reduction for multi-stage deliveries.
+        return { ...m, status: newStatus };
+      }
+      return m;
+    }));
+  };
+
+  const deleteCategory = (categoryName) => {
+    setCategories(categories.filter(c => c !== categoryName));
+  };
+
+
   // Operations ... (Receipt, Delivery, Transfer, Adjustment logic remains the same)
   const processReceipt = (productId, quantity, location, reference) => {
     const product = products.find(p => p.id === productId);
@@ -268,16 +294,58 @@ export const InventoryProvider = ({ children }) => {
     return true;
   };
 
-  const processDelivery = (productId, quantity, location, reference) => {
+  const processDelivery = (productId, quantity, location, reference, status = 'Done') => {
     const product = products.find(p => p.id === productId);
-    if (!product || Number(product.stock) < Number(quantity)) return false;
-    updateProduct(productId, { stock: Number(product.stock) - Number(quantity) });
+    if (!product) return false;
+    
+    const qty = Number(quantity);
+    const currentStock = Number(product.stock);
+    const currentReserved = Number(product.reserved || 0);
+    const available = currentStock - currentReserved;
+
+    if (available < qty) return false;
+    
+    if (status === 'Done') {
+        // Immediate full delivery
+        updateProduct(productId, { 
+            stock: currentStock - qty 
+        });
+    } else {
+        // Just reserve the items
+        updateProduct(productId, { 
+            reserved: currentReserved + qty 
+        });
+    }
+    
     addMovement({
       productId, productName: product.name, type: 'Delivery',
-      quantityChange: -Number(quantity), location, reference, status: 'Done'
+      quantityChange: -qty, location, reference, status
     });
     return true;
   };
+
+  const validateDelivery = (movementId) => {
+    const movement = movements.find(m => m.id === movementId);
+    if (!movement || movement.status === 'Done') return false;
+
+    const product = products.find(p => p.id === movement.productId);
+    if (!product) return false;
+
+    const qty = Math.abs(Number(movement.quantityChange));
+    const currentStock = Number(product.stock);
+    const currentReserved = Number(product.reserved || 0);
+
+    // Finalize: reduce stock and release reservation
+    updateProduct(product.id, { 
+        stock: currentStock - qty,
+        reserved: Math.max(0, currentReserved - qty)
+    });
+    
+    updateMovementStatus(movementId, 'Done');
+    return true;
+  };
+
+
 
   const processTransfer = (productId, quantity, fromLocation, toLocation, reference) => {
     const product = products.find(p => p.id === productId);
@@ -309,8 +377,11 @@ export const InventoryProvider = ({ children }) => {
       addProduct, updateProduct, deleteProduct,
       addWarehouse: (w) => setWarehouses([...warehouses, w]),
       addCategory: (c) => setCategories([...categories, c]),
-      processReceipt, processDelivery, processTransfer, processAdjustment
+      deleteCategory,
+      processReceipt, processDelivery, processTransfer, processAdjustment,
+      updateMovementStatus, validateDelivery
     }}>
+
       {!loading && children}
     </InventoryContext.Provider>
   );

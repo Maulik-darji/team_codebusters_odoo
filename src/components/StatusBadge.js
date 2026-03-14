@@ -5,9 +5,11 @@ const StatusBadge = ({ status }) => {
   const s = status ? status.toLowerCase() : '';
   
   if (['done', 'ready', 'completed'].includes(s)) badgeClass = 'badge-success';
+  else if (['picking', 'packing'].includes(s)) badgeClass = 'badge-info';
   else if (['draft', 'waiting', 'pending'].includes(s)) badgeClass = 'badge-warning';
   else if (['canceled', 'cancelled', 'out of stock'].includes(s)) badgeClass = 'badge-danger';
   else if (['low stock', 'active'].includes(s)) badgeClass = 'badge-info';
+
 
   return (
     <span className={`badge ${badgeClass}`}>

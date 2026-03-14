@@ -18,7 +18,11 @@
                         <h1 style="font-size: 1.5rem; font-weight: 700;">Product Catalog</h1>
                         <p class="text-muted">Manage your inventory products and stock levels</p>
                     </div>
-                    <button class="btn btn-primary" onclick="window.openModal()">+ Add Product</button>
+                    <div class="flex gap-2">
+                        <button class="btn btn-light" onclick="window.openCategoryModal()"><i data-lucide="tag" style="width:16px; margin-right: 5px;"></i> Manage Categories</button>
+                        <button class="btn btn-primary" onclick="window.openModal()">+ Add Product</button>
+                    </div>
+
                 </div>
 
                 <div class="table-responsive">
@@ -96,7 +100,27 @@
                 </div>
             </form>
         </div>
+    <!-- Category Management Modal -->
+    <div id="category-modal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1001;">
+        <div class="card" style="width: 100%; max-width: 400px;">
+            <div class="flex-between mb-4">
+                <h2 style="font-size: 1.25rem;">Manage Categories</h2>
+                <button class="btn btn-light btn-sm" onclick="window.closeCategoryModal()">✕</button>
+            </div>
+            
+            <form id="category-form" class="mb-4">
+                <div class="flex gap-2">
+                    <input type="text" id="cat-name" required placeholder="New Category Name" style="flex: 1;">
+                    <button type="submit" class="btn btn-primary">Add</button>
+                </div>
+            </form>
+
+            <div id="category-list" style="max-height: 200px; overflow-y: auto;">
+                <!-- Categories will be rendered here -->
+            </div>
+        </div>
     </div>
+
 
     <script type="module" src="js/app.js"></script>
     <script type="module" src="js/products.js"></script>

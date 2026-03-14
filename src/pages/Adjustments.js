@@ -8,12 +8,29 @@ const Adjustments = () => {
   const { movements, products, warehouses, processAdjustment } = useInventory();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
-    productId: products[0]?.id || '',
-    recordedQty: products[0]?.stock || 0,
-    actualQty: products[0]?.stock || 0,
-    location: warehouses[0] || '',
+    productId: '',
+    recordedQty: 0,
+    actualQty: 0,
+    location: '',
     reason: 'Inventory Count'
   });
+
+  // Sync initial product/location when they load
+  React.useEffect(() => {
+    if (!formData.productId && products.length > 0) {
+      const prod = products[0];
+      setFormData(prev => ({ 
+        ...prev, 
+        productId: prod.id,
+        recordedQty: prod.stock,
+        actualQty: prod.stock
+      }));
+    }
+    if (!formData.location && warehouses.length > 0) {
+      setFormData(prev => ({ ...prev, location: warehouses[0] }));
+    }
+  }, [products, warehouses]);
+
 
   const adjustmentMovements = movements.filter(m => m.type === 'Adjustment');
 

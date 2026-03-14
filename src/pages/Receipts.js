@@ -9,10 +9,21 @@ const Receipts = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     supplier: '',
-    productId: products[0]?.id || '',
+    productId: '',
     quantity: 1,
-    warehouse: warehouses[0] || ''
+    warehouse: ''
   });
+
+  // Sync initial product/warehouse when they load
+  React.useEffect(() => {
+    if (!formData.productId && products.length > 0) {
+      setFormData(prev => ({ ...prev, productId: products[0].id }));
+    }
+    if (!formData.warehouse && warehouses.length > 0) {
+      setFormData(prev => ({ ...prev, warehouse: warehouses[0] }));
+    }
+  }, [products, warehouses]);
+
 
   const receiptMovements = movements.filter(m => m.type === 'Receipt');
 

@@ -14,6 +14,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app, "stockpilot-new");
+const db = getFirestore(app);
 
 export { auth, db };

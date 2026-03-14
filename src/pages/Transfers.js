@@ -8,11 +8,25 @@ const Transfers = () => {
   const { movements, products, warehouses, processTransfer } = useInventory();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
-    productId: products[0]?.id || '',
+    productId: '',
     quantity: 1,
-    fromLocation: warehouses[0] || '',
-    toLocation: warehouses[1] || ''
+    fromLocation: '',
+    toLocation: ''
   });
+
+  // Sync initial product/warehouses when they load
+  React.useEffect(() => {
+    if (!formData.productId && products.length > 0) {
+      setFormData(prev => ({ ...prev, productId: products[0].id }));
+    }
+    if (!formData.fromLocation && warehouses.length > 0) {
+      setFormData(prev => ({ ...prev, fromLocation: warehouses[0] }));
+    }
+    if (!formData.toLocation && warehouses.length > 1) {
+      setFormData(prev => ({ ...prev, toLocation: warehouses[1] }));
+    }
+  }, [products, warehouses]);
+
 
   const transferMovements = movements.filter(m => m.type === 'Internal Transfer');
 

@@ -91,11 +91,23 @@ const Receipts = {
             status: 'Ready'
         };
 
-        await Storage.saveMovement(movement);
-        window.closeModal();
-        await this.renderList();
-        e.target.reset();
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Validating...';
+
+        try {
+            await Storage.saveMovement(movement);
+            window.closeModal();
+            await this.renderList();
+            e.target.reset();
+        } catch (err) {
+            alert("Receipt failed: " + err.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Validate Receipt';
+        }
     },
+
 
     async validate(id) {
         const movements = await Storage.getMovements();

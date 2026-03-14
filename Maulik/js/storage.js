@@ -51,11 +51,12 @@ const Storage = {
     // --- MOVEMENTS (Ledger) ---
     async getMovements() {
         try {
-            const q = query(collection(db, 'movements'), orderBy('date', 'desc'));
+            const q = query(collection(db, 'movements'), orderBy('timestamp', 'desc'));
             const snap = await getDocs(q);
             return snap.docs.map(d => ({ id: d.id, ...d.data() }));
         } catch (err) {
             console.error("Firestore getMovements error:", err);
+            alert("Database error: Could not fetch movements. Check your connection.");
             return [];
         }
     },
@@ -69,9 +70,11 @@ const Storage = {
             await setDoc(ref, movement);
         } catch (err) {
             console.error("Firestore saveMovement error:", err);
+            alert("Database error: Could not save operation. " + err.message);
         }
         return movement;
     },
+
 
     // --- SETTINGS (Warehouses, Categories) ---
     async getSettings() {
@@ -130,18 +133,19 @@ const Storage = {
             if (!settings.sequences) settings.sequences = {};
 
             const opCode = type === 'Receipt' ? 'IN' : (type === 'Delivery' ? 'OUT' : 'INT');
-            const seqKey = `${warehouseCode}/${opCode}`;
+            const seqKey = `${warehouseCode}-${opCode}`;
             
             const nextId = (settings.sequences[seqKey] || 0) + 1;
             settings.sequences[seqKey] = nextId;
             await this.saveSettings(settings);
 
             const paddedId = String(nextId).padStart(3, '0');
-            return `${warehouseCode}/${opCode}/${paddedId}`;
+            return `${warehouseCode}-${opCode}-${paddedId}`;
         } catch (err) {
             console.error("Firestore getNextSequence error:", err);
-            return `${warehouseCode}/GEN/${Date.now()}`;
+            return `${warehouseCode}-GEN-${Date.now()}`;
         }
+
     },
 
     // --- USERS ---
@@ -179,8 +183,10 @@ const Storage = {
             await this.saveSettings({ 
                 seeded: true, 
                 warehouses: defaultWarehouses, 
-                categories: defaultCategories 
+                categories: defaultCategories,
+                sequences: {}
             });
+
             console.log("Database seeded successfully!");
         } catch (err) {
             console.error("Seed error:", err);

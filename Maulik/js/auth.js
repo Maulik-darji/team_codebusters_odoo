@@ -47,6 +47,11 @@ const Auth = {
                     console.error("Auth helper error:", e);
                     Storage.setCurrentUser({ email: user.email });
                 }
+                
+                // If already logged in and on an auth page, redirect to landing
+                if (isAuthPage) {
+                    window.location.href = 'index.html';
+                }
             } else if (!isGuest && !isAuthPage) {
                 window.location.href = 'login.html';
             }
@@ -65,7 +70,6 @@ const Auth = {
 
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            alert("Signed in successfully!");
             window.location.href = 'index.html';
         } catch (err) {
             errorEl.textContent = "Login Failed: " + err.message;
@@ -105,7 +109,6 @@ const Auth = {
                 createdAt: new Date().toISOString()
             });
 
-            alert("Account created and synced to cloud! Redirecting...");
             window.location.href = 'index.html';
         } catch (err) {
             errorEl.textContent = "Signup Failed: " + err.message;
