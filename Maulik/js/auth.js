@@ -1,0 +1,114 @@
+import { auth, db } from './firebase-config.js';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { collection, query, where, getDocs, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import Storage from './storage.js';
+
+/**
+ * Auth.js - Handles Firebase Login, Signup and Section Guards
+ */
+
+const Auth = {
+    init() {
+        const loginForm = document.getElementById('login-form');
+        const signupForm = document.getElementById('signup-form');
+        const skipBtn = document.getElementById('skip-btn');
+
+        this.setupAuthObserver();
+
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+        }
+
+        if (signupForm) {
+            signupForm.addEventListener('submit', (e) => this.handleSignup(e));
+        }
+
+        if (skipBtn) {
+            skipBtn.addEventListener('click', () => {
+                Storage.setCurrentUser({ loginId: 'Guest', email: 'guest@demo.com', isGuest: true });
+                window.location.href = 'index.html';
+            });
+        }
+    },
+
+    setupAuthObserver() {
+        onAuthStateChanged(auth, async (user) => {
+            const isGuest = localStorage.getItem('ims_current_user') && JSON.parse(localStorage.getItem('ims_current_user')).isGuest;
+            const path = window.location.pathname;
+            const isAuthPage = path.includes('login.html') || path.includes('signup.html');
+
+            if (user) {
+                // Fetch extra details from Firestore if needed
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                const userData = userDoc.exists() ? userDoc.data() : { email: user.email };
+                Storage.setCurrentUser(userData);
+                
+                if (isAuthPage) window.location.href = 'index.html';
+            } else if (!isGuest && !isAuthPage) {
+                window.location.href = 'login.html';
+            }
+        });
+    },
+
+    async handleLogin(e) {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const errorEl = document.getElementById('alert-error');
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Authenticating...";
+
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            // Redirect happens in onAuthStateChanged
+        } catch (err) {
+            errorEl.textContent = "Login Failed: " + err.message;
+            errorEl.classList.remove('hidden');
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Login";
+        }
+    },
+
+    async handleSignup(e) {
+        e.preventDefault();
+        const loginId = document.getElementById('username').value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const errorEl = document.getElementById('alert-error');
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Creating Account...";
+
+        try {
+            // 1. Check LoginID uniqueness in Firestore
+            const q = query(collection(db, 'users'), where('loginId', '==', loginId.toLowerCase()));
+            const snap = await getDocs(q);
+            if (!snap.empty) throw new Error("Login ID already taken.");
+
+            // 2. Create Auth User
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // 3. Store in Firestore
+            await setDoc(doc(db, 'users', user.uid), {
+                id: user.uid,
+                loginId: loginId.toLowerCase(),
+                email: email,
+                createdAt: new Date().toISOString()
+            });
+
+            // Redirect happens in onAuthStateChanged
+        } catch (err) {
+            errorEl.textContent = "Signup Failed: " + err.message;
+            errorEl.classList.remove('hidden');
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Create Account";
+        }
+    }
+};
+
+Auth.init();
+export default Auth;

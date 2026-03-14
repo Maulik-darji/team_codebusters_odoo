@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - StockPilot IMS</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-wrapper">
+        <aside id="sidebar"></aside>
+        <div id="main-panel">
+            <header id="navbar"></header>
+            <main id="content">
+                <div class="mb-4" style="margin-bottom: 2rem;">
+                    <h1 style="font-size: 1.5rem; font-weight: 700;">System Settings</h1>
+                    <p class="text-muted">Manage locations, categories, and system defaults</p>
+                </div>
+
+                <div class="grid-cards" style="grid-template-columns: 1fr 1fr;">
+                    <!-- Warehouses -->
+                    <div class="card">
+                        <div class="flex-between mb-2" style="margin-bottom: 1rem;">
+                            <h2 style="font-size: 1.1rem; font-weight: 700;">Warehouses / Locations</h2>
+                            <button class="btn btn-primary btn-sm" onclick="addWarehouse()">+ Add</button>
+                        </div>
+                        <div id="warehouse-list" class="flex-col gap-2"></div>
+                    </div>
+
+                    <!-- Categories -->
+                    <div class="card">
+                        <div class="flex-between mb-2" style="margin-bottom: 1rem;">
+                            <h2 style="font-size: 1.1rem; font-weight: 700;">Product Categories</h2>
+                            <button class="btn btn-primary btn-sm" onclick="addCategory()">+ Add</button>
+                        </div>
+                        <div id="category-list" class="flex-col gap-2"></div>
+                    </div>
+                </div>
+
+                <div class="card mt-4" style="margin-top: 2rem;">
+                    <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">Data Management</h2>
+                    <p class="text-muted mb-2" style="font-size: 0.875rem;">Resetting the system will clear all products and movements.</p>
+                    <button class="btn btn-light" style="color: var(--danger); border-color: var(--danger);" onclick="resetSystem()">Reset Entire Database</button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+    <script type="module">
+        import Storage from './js/storage.js';
+
+        function renderSettings() {
+            const settings = Storage.get('ims_settings');
+            const wList = document.getElementById('warehouse-list');
+            const cList = document.getElementById('category-list');
+
+            wList.innerHTML = settings.warehouses.map(w => `
+                <div class="flex-between" style="padding: 0.5rem; background: #f8f9fa; border-radius: 4px; border: 1px solid #eee;">
+                    <span>${w}</span>
+                    <i data-lucide="trash-2" style="width: 14px; cursor: pointer; color: var(--danger)" onclick="window.removeWarehouse('${w}')"></i>
+                </div>
+            `).join('');
+
+            cList.innerHTML = settings.categories.map(c => `
+                <div class="flex-between" style="padding: 0.5rem; background: #f8f9fa; border-radius: 4px; border: 1px solid #eee;">
+                    <span>${c}</span>
+                    <i data-lucide="trash-2" style="width: 14px; cursor: pointer; color: var(--danger)" onclick="window.removeCategory('${c}')"></i>
+                </div>
+            `).join('');
+            
+            if (window.lucide) window.lucide.createIcons();
+        }
+
+        window.addWarehouse = () => {
+            const w = prompt("Enter Warehouse Name:");
+            if (w) {
+                const settings = Storage.get('ims_settings');
+                settings.warehouses.push(w);
+                Storage.set('ims_settings', settings);
+                renderSettings();
+            }
+        };
+
+        window.removeWarehouse = (w) => {
+            if (confirm(`Remove ${w}?`)) {
+                const settings = Storage.get('ims_settings');
+                settings.warehouses = settings.warehouses.filter(items => items !== w);
+                Storage.set('ims_settings', settings);
+                renderSettings();
+            }
+        };
+
+        window.addCategory = () => {
+            const c = prompt("Enter Category Name:");
+            if (c) {
+                const settings = Storage.get('ims_settings');
+                settings.categories.push(c);
+                Storage.set('ims_settings', settings);
+                renderSettings();
+            }
+        };
+
+        window.removeCategory = (c) => {
+            if (confirm(`Remove ${c}?`)) {
+                const settings = Storage.get('ims_settings');
+                settings.categories = settings.categories.filter(items => items !== c);
+                Storage.set('ims_settings', settings);
+                renderSettings();
+            }
+        };
+
+        window.resetSystem = () => {
+            if (confirm("CRITICAL: This will delete ALL products, movements, and data. Proceed?")) {
+                localStorage.clear();
+                window.location.reload();
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', renderSettings);
+    </script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Products - StockPilot IMS</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-wrapper">
+        <aside id="sidebar"></aside>
+        <div id="main-panel">
+            <header id="navbar"></header>
+            <main id="content">
+                <div class="flex-between mb-4" style="margin-bottom: 2rem;">
+                    <div>
+                        <h1 style="font-size: 1.5rem; font-weight: 700;">Product Catalog</h1>
+                        <p class="text-muted">Manage your inventory products and stock levels</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="window.openModal()">+ Add Product</button>
+                </div>
+
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>SKU</th>
+                                <th>Category</th>
+                                <th>Stock Availability</th>
+                                <th>Primary Location</th>
+                                <th style="width: 100px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="product-list"></tbody>
+                    </table>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+        <div class="card" style="width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
+            <h2 style="margin-bottom: 1.5rem;" id="modal-title">Add New Product</h2>
+            <form id="product-form">
+                <input type="hidden" id="p-id">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Product Name</label>
+                        <input type="text" id="p-name" required placeholder="e.g. Steel Rod">
+                    </div>
+                    <div class="form-group">
+                        <label>SKU Code</label>
+                        <input type="text" id="p-sku" required placeholder="e.g. STL-001">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select id="p-category" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Unit of Measure</label>
+                        <select id="p-unit" required>
+                            <option>Units</option>
+                            <option>KG</option>
+                            <option>Litres</option>
+                            <option>Metres</option>
+                            <option>Boxes</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Warehouse Location</label>
+                        <select id="p-location" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Reorder Level (Alert)</label>
+                        <input type="number" id="p-reorder" value="10" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Initial Physical Stock</label>
+                    <input type="number" id="p-stock" value="0" required>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-light" onclick="window.closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Product</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+    <script type="module" src="js/products.js"></script>
+</body>
+</html>

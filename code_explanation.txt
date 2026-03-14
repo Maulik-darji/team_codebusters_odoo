@@ -1,0 +1,104 @@
+# StockPilot MVP - Code Explanation Guide
+
+This document explains the structure and purpose of every major component and file created for the StockPilot MVP.
+
+## 1. package.json
+This is the main configuration file for the Node.js/React project.
+- **`name` & `version`**: Identifies the project as "stockpilot" version "0.1.0".
+- **`dependencies`**: Lists external libraries the project needs.
+  - `react` & `react-dom`: Core UI library and DOM renderer.
+  - `react-scripts`: Build tools (Webpack, Babel, Dev Server) hiding complex config.
+  - `react-router-dom`: Enables page navigation without reloading the browser.
+  - `lucide-react`: Provides modern, scalable SVG icons used throughout the app.
+- **`scripts`**: Terminal commands (`start`, `build`, `test`) to run/compile the code.
+
+## 2. index.css
+The global stylesheet for the application.
+- Defines CSS variables (`--primary`, `--bg-color`, etc.) for consistent colors and theming.
+- Contains all base styles, layout utilities, and custom classes (`.btn-primary`, `.card`, `.badge`).
+- Ensures a modern, clean, ERP-like aesthetic with shadows and simple animations.
+
+## 3. App.js
+The entry point and main router for the entire application.
+- Sets up `BrowserRouter` and maps URLs (like `/dashboard` or `/products`) to their specific page components.
+- Wraps the entire application in the `InventoryProvider` so global state is accessible everywhere.
+- Defines a `ProtectedRoute` component to ensure only logged-in users can view the dashboard.
+
+## 4. data/mockData.js
+A static file acting as our initial blank database.
+- Provides `initialProducts`, `warehouses`, `categories`, and `initialMovements`.
+- Feeds the `InventoryContext` with default data if local storage is empty.
+
+## 5. context/InventoryContext.js
+The "Brain" and "Mock Backend" of the application.
+- Uses React's Context API to share state (products, movements, user) across all components without "prop drilling".
+- Saves data to `localStorage` every time changes occur, so data persists when the page refreshes.
+- Exposes critical functions like `login`, `addProduct`, `processReceipt`, `processDelivery`, and `processTransfer` which handle the business logic of stock calculation.
+
+## 6. components/Sidebar.js
+The left-hand navigation menu.
+- Displays links to all main modules visually using `lucide-react` icons.
+- Highlights the current "active" page using `NavLink` from React Router.
+
+## 7. components/Navbar.js
+The top navigation bar.
+- Shows the current page title dynamically based on the URL.
+- Contains placeholder actions like a search bar, notifications bell, and user avatar.
+
+## 8. components/KpiCard.js
+A reusable dashboard metric card.
+- Accepts `title`, `value`, `icon`, and `trend` as props.
+- Displays key performance indicators cleanly in a box with an icon.
+
+## 9. components/Table.js
+A highly reusable, dynamic data grid.
+- Accepts an array of `columns` definitions and an array of `data` objects.
+- Automatically handles rendering rows, headers, and custom cell formatting (if a `render` function is provided in the column definition).
+
+## 10. components/StatusBadge.js
+A visual indicator for different states.
+- Turns text like "Done" or "Low Stock" into colored, rounded pills (green for success, red for danger).
+
+## 11. components/Modal.js
+A reusable popup window component.
+- Uses conditional rendering (`if (!isOpen) return null`) to display an overlay on top of the main UI.
+- Contains a generic container where forms can be dynamically injected via `children`.
+
+---
+## Pages
+
+### 12. pages/Login.js
+- Simple form taking email and password.
+- Calls `login()` from Context to mock authentication and redirects to the dashboard.
+
+### 13. pages/Dashboard.js
+- Reads global state to calculate aggregates like "Total Stock" or "Pending Operations".
+- Renders multiple `KpiCard`s to give a quick operational snapshot of the warehouse.
+
+### 14. pages/Products.js
+- Renders the product catalog using the `Table` component.
+- Includes a button to open a `Modal` with a form for adding or editing a new product.
+- Validates fields and saves changes to the Context.
+
+### 15. pages/Receipts.js (Incoming)
+- Page to record goods arriving from vendors.
+- Selecting a product and quantity *increases* the total stock.
+- Adds an event of type "Receipt" to the Move History.
+
+### 16. pages/Delivery.js (Outgoing)
+- Page to process outgoing shipments to customers.
+- Checks if enough stock exists. If so, *decreases* the total stock.
+- Adds an event of type "Delivery" to the Move History.
+
+### 17. pages/Transfers.js (Internal Move)
+- Page to simply change the "location" property of an item without altering total stock count.
+- Adds an event of type "Internal Transfer" to the Move History.
+
+### 18. pages/Adjustments.js (Correction)
+- Used when a physical count differs from the system count (e.g. 5 system, 4 physical).
+- Adjusts stock exactly to the new physical count inputted.
+- Calculates the difference (`+/-`) and logs it in Move History as "Adjustment".
+
+### 19. pages/MoveHistory.js (Ledger)
+- Displays every single operation performed by Receipts, Deliveries, Transfers, or Adjustments in chronological order.
+- Acts as the definitive audit trail for the application.
