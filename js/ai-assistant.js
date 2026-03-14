@@ -4,7 +4,7 @@ const AIAssistant = {
     messages: [],
     currentModel: 'gemini-2.5-flash',
     // Global API Key provided by site owner
-    defaultApiKey: 'AIzaSyBdsCjmDB8vkzpUgQURcu6nOsHl7qBT08I', 
+    defaultApiKey: 'AIzaSyBdsCjmDB8vkzpUgQURcu6nOsHl7qBT08I',
 
     getApiUrl() {
         // Use user-provided key if exists, otherwise fallback to site-wide default
